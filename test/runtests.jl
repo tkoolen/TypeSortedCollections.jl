@@ -32,3 +32,16 @@ end
         @test results[index] == f(element, y1[index], y2[index])
     end
 end
+
+@testset "foreach" begin
+    x = [4.; 5; 3.; Float32(6)]
+    sortedx = TypeSortedCollection(x)
+    results = []
+    foreach(sortedx) do x
+        push!(results, x * 4.)
+    end
+    for (index, element) in enumerate(x)
+        @test results[index] isa Float64
+        @test element * 4. in results[index]
+    end
+end
