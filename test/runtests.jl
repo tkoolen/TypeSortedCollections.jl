@@ -1,30 +1,34 @@
 using TypeSortedCollections
 using Base.Test
 
-x = Pair[3. => 1; 4 => 2; 5 => 3]
-sortedx = TypeSortedCollection(x, last)
-index = indexfun(sortedx)
-@test index == last
-@test length(sortedx) == length(x)
-
-f(x::Pair{Int64, Int64}) = 3 * first(x)
-f(x::Pair{Float64, Int64}) = round(Int64, first(x) / 2)
-
-maptest(f, results, index, x) = begin
-    for element in x
-        results[index(element)] != f(element) && return false
-    end
-    true
+@testset "length" begin
+    x = [3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    @test length(sortedx) == length(x)
 end
 
-results = Vector{Int64}(maximum(index.(x)))
-map!(f, results, sortedx)
-@test maptest(f, results, index, x)
+@testset "map! no args" begin
+    x = [3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    f(x::Int64) = 3 * x
+    f(x::Float64) = round(Int64, x / 2)
+    results = similar(x, Int64)
+    map!(f, results, sortedx)
+    for (index, element) in enumerate(x)
+        @test results[index] == f(element)
+    end
+end
 
-y = Pair[1. => 4; 2. => 2; 3. => 3]
-sortedy = typeof(sortedx)(y, index)
-@test typeof(sortedy) == typeof(sortedx)
-
-results = Vector{Int64}(maximum(index.(y)))
-map!(f, results, sortedy)
-@test maptest(f, results, index, y)
+@testset "map! with args" begin
+    x = [3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    y1 = rand(length(x))
+    y2 = rand(Int, length(x))
+    f(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
+    f(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
+    results = similar(x, Float64)
+    map!(f, results, sortedx, y1, y2)
+    for (index, element) in enumerate(x)
+        @test results[index] == f(element, y1[index], y2[index])
+    end
+end
