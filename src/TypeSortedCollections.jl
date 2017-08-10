@@ -44,6 +44,8 @@ function Base.append!(dest::TypeSortedCollection, A)
     dest
 end
 
+@inline Base.isempty(x::TypeSortedCollection) = mapreduce(isempty, (a, b) -> a && b, x.data)
+@inline Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 @inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
 @generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}

@@ -9,10 +9,15 @@ g(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
 g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
 end
 
-@testset "length" begin
+@testset "general collection interface" begin
     x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
     @test length(sortedx) == length(x)
+    @test !isempty(sortedx)
+
+    empty!(sortedx)
+    @test length(sortedx) == 0
+    @test isempty(sortedx)
 end
 
 @testset "map! no args" begin
