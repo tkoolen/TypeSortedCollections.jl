@@ -44,7 +44,7 @@ function Base.append!(dest::TypeSortedCollection, A)
     dest
 end
 
-@inline Base.isempty(x::TypeSortedCollection) = mapreduce(isempty, (a, b) -> a && b, x.data)
+@inline Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 @inline Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 @inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
@@ -79,6 +79,20 @@ end
         end)
     end
     push!(expr.args, :(return nothing))
+    expr
+end
+
+@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection{D}) where {D}
+    expr = Expr(:block)
+    push!(expr.args, :(ret = Base.r_promote(op, v0)))
+    for i = 1 : fieldcount(D)
+        push!(expr.args, quote
+            let vec = tsc.data[$i]
+                ret = mapreduce(f, op, ret, vec)
+            end
+        end)
+    end
+    push!(expr.args, :(return ret))
     expr
 end
 
