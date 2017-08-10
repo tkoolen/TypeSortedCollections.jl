@@ -22,13 +22,43 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     end
 end
 
-@inline num_types(::Type{TypeSortedCollection{D, N}}) where {D, N} = N
-
 function TypeSortedCollection(A)
     types = unique(typeof.(A))
     D = Tuple{[Vector{T} for T in types]...}
     TypeSortedCollection{D}(A)
 end
+
+
+@inline num_types(::Type{TypeSortedCollection{D, N}}) where {D, N} = Val{N}()
+@inline num_types(tsc::TypeSortedCollection) = num_types(typeof(tsc))
+
+val(::Val{T}) where {T} = T
+
+# Trick from StaticArrays:
+@inline first_tsc(a1::TypeSortedCollection, as...) = a1
+@inline first_tsc(a1, as...) = first_tsc(as...)
+@inline first_tsc() = throw(ArgumentError("No TypeSortedCollection found in argument list"))
+
+@inline function same_num_types(as...)
+    n = num_types(first_tsc(as...))
+    _num_types_match(n, as...) || _throw_num_types_mismatch(as...)
+    n
+end
+@inline _num_types_match(n::Val, a1::AbstractVector, as...) = _num_types_match(n, as...)
+@inline _num_types_match(n::Val, a1::TypeSortedCollection, as...) = ((n == num_types(a1)) ? _num_types_match(n, as...) : false)
+@inline _num_types_match(n::Val) = true
+
+@noinline function _throw_num_types_mismatch(as...)
+    throw(DimensionMismatch()) # TODO: better error message
+end
+
+# inspired by Base.ith_all
+@inline _getindex_all(i, j, vecindex, ::Tuple{}) = ()
+@inline _getindex_all(i, j, vecindex, as) = (_getindex(i, j, vecindex, as[1]), _getindex_all(i, j, vecindex, Base.tail(as))...)
+@inline _getindex(i, j, vecindex, a::AbstractVector) = a[vecindex]
+@inline _getindex(i, j, vecindex, a::TypeSortedCollection) = a.data[i][j]
+@inline _setindex!(i, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
+@inline _setindex!(i, j, vecindex, a::TypeSortedCollection, val) = a.data[i][j] = val
 
 function Base.append!(dest::TypeSortedCollection, A)
     eltypes = map(eltype, dest.data)
@@ -48,15 +78,21 @@ end
 @inline Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 @inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
-@generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection, As::AbstractVector...)
+function Base.map!(f, As::Union{T, AbstractVector}...) where {T<:TypeSortedCollection}
+    N = same_num_types(As...)
+    _map!(f, N, As...)
+end
+
+@generated function _map!(f, ::Val{N}, dest, args...) where {N}
     expr = Expr(:block)
-    for i = 1 : num_types(tsc)
+    push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
+    for i = 1 : N
         push!(expr.args, quote
-            let vec = tsc.data[$i], inds = tsc.indices[$i]
-                for j in linearindices(vec)
-                    element = vec[j]
-                    index = inds[j]
-                    dest[index] = f(element, Base.ith_all(index, As)...)
+            # TODO: check that indices match
+            let inds = leading_tsc.indices[$i]
+                for j in linearindices(inds)
+                    vecindex = inds[j]
+                    _setindex!($i, j, vecindex, dest, f(_getindex_all($i, j, vecindex, args)...))
                 end
             end
         end)
@@ -65,15 +101,21 @@ end
     expr
 end
 
-@generated function Base.foreach(f, tsc::TypeSortedCollection, As::AbstractVector...)
+function Base.foreach(f, As::Union{T, AbstractVector}...) where {T<:TypeSortedCollection}
+    N = same_num_types(As...)
+    _foreach(f, N, As...)
+end
+
+@generated function _foreach(f, ::Val{N}, As...) where {N}
     expr = Expr(:block)
-    for i = 1 : num_types(tsc)
+    push!(expr.args, :(leading_tsc = first_tsc(As...)))
+    for i = 1 : N
         push!(expr.args, quote
-            let vec = tsc.data[$i], inds = tsc.indices[$i]
-                for j in linearindices(vec)
-                    element = vec[j]
-                    index = inds[j]
-                    f(element, Base.ith_all(index, As)...)
+            # TODO: check that indices match
+            let inds = leading_tsc.indices[$i]
+                for j in linearindices(inds)
+                    vecindex = inds[j]
+                    f(_getindex_all($i, j, vecindex, As)...)
                 end
             end
         end)
@@ -85,7 +127,7 @@ end
 @generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection)
     expr = Expr(:block)
     push!(expr.args, :(ret = Base.r_promote(op, v0)))
-    for i = 1 : num_types(tsc)
+    for i = 1 : val(num_types(tsc))
         push!(expr.args, quote
             let vec = tsc.data[$i]
                 ret = mapreduce(f, op, ret, vec)
