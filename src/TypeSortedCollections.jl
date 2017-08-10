@@ -3,8 +3,6 @@ module TypeSortedCollections
 export
     TypeSortedCollection
 
-using Compat
-
 const TupleOfVectors = Tuple{Vararg{Vector{T} where T}}
 
 struct TypeSortedCollection{D<:TupleOfVectors, N}
@@ -23,6 +21,8 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
         append!(TypeSortedCollection{D}(), A)
     end
 end
+
+@inline num_types(::Type{TypeSortedCollection{D, N}}) where {D, N} = N
 
 function TypeSortedCollection(A)
     types = unique(typeof.(A))
@@ -48,9 +48,9 @@ end
 @inline Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 @inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
-@generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}
+@generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection, As::AbstractVector...)
     expr = Expr(:block)
-    for i = 1 : fieldcount(D)
+    for i = 1 : num_types(tsc)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
                 for j in linearindices(vec)
@@ -65,9 +65,9 @@ end
     expr
 end
 
-@generated function Base.foreach(f, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}
+@generated function Base.foreach(f, tsc::TypeSortedCollection, As::AbstractVector...)
     expr = Expr(:block)
-    for i = 1 : fieldcount(D)
+    for i = 1 : num_types(tsc)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
                 for j in linearindices(vec)
@@ -82,10 +82,10 @@ end
     expr
 end
 
-@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection{D}) where {D}
+@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection)
     expr = Expr(:block)
     push!(expr.args, :(ret = Base.r_promote(op, v0)))
-    for i = 1 : fieldcount(D)
+    for i = 1 : num_types(tsc)
         push!(expr.args, quote
             let vec = tsc.data[$i]
                 ret = mapreduce(f, op, ret, vec)
