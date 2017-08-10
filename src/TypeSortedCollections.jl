@@ -12,7 +12,7 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     indices::NTuple{N, Vector{Int}}
 
     function TypeSortedCollection{D}() where {D<:TupleOfVectors}
-        eltypes = eltype.([D.parameters...])
+        eltypes = map(eltype, D.parameters)
         data = tuple((T[] for T in eltypes)...)
         indices = tuple((Int[] for i in eachindex(eltypes))...)
         N = length(indices)
