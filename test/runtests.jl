@@ -66,3 +66,12 @@ end
     sortedx = TypeSortedCollection(x)
     @test_throws ArgumentError append!(sortedx, [Float32(6)])
 end
+
+@testset "mapreduce" begin
+    x = Number[4.; 5; 3.]
+    let sortedx = TypeSortedCollection(x), v0 = 2. # required to achieve zero allocations.
+        result = mapreduce(M.f, +, v0, sortedx)
+        @test isapprox(result, mapreduce(M.f, +, v0, sortedx); atol = 1e-18)
+        @test (@allocated mapreduce(M.f, +, v0, sortedx)) == 0
+    end
+end
