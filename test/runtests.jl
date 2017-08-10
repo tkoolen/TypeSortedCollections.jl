@@ -55,3 +55,9 @@ end
         @test element * 4. in results
     end
 end
+
+@testset "append!" begin
+    x = Number[4.; 5; 3.]
+    sortedx = TypeSortedCollection(x)
+    @test_throws ArgumentError append!(sortedx, [Float32(6)])
+end

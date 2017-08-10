@@ -31,10 +31,12 @@ function TypeSortedCollection(A)
 end
 
 function Base.append!(dest::TypeSortedCollection, A)
-    type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltype.(dest.data)))
+    eltypes = map(eltype, dest.data)
+    type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltypes))
     index = length(dest)
     for x in A
         T = typeof(x)
+        haskey(type_to_tuple_index, T) || throw(ArgumentError("Cannot store elements of type $T; must be one of $eltypes."))
         i = type_to_tuple_index[T]
         push!(dest.data[i], x)
         push!(dest.indices[i], (index += 1))
