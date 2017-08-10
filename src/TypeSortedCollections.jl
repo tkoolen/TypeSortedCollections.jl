@@ -66,7 +66,7 @@ end
     for i = 1 : fieldcount(D)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
-                for j in eachindex(vec)
+                for j in linearindices(vec)
                     element = vec[j]
                     index = inds[j]
                     f(element, Base.ith_all(index, As)...)
