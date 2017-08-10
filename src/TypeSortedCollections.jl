@@ -1,3 +1,5 @@
+__precompile__()
+
 module TypeSortedCollections
 
 export
@@ -22,13 +24,24 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     end
 end
 
-@inline num_types(::Type{TypeSortedCollection{D, N}}) where {D, N} = N
-
 function TypeSortedCollection(A)
     types = unique(typeof.(A))
     D = Tuple{[Vector{T} for T in types]...}
     TypeSortedCollection{D}(A)
 end
+
+# Trick from StaticArrays:
+@inline first_tsc(a1::TypeSortedCollection, as...) = a1
+@inline first_tsc(a1, as...) = first_tsc(as...)
+@inline first_tsc() = throw(ArgumentError("No TypeSortedCollection found in argument list"))
+
+# inspired by Base.ith_all
+@inline _getindex_all(::Val, j, vecindex) = ()
+@inline _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
+@inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
+@inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
+@inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
+@inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
 
 function Base.append!(dest::TypeSortedCollection, A)
     eltypes = map(eltype, dest.data)
@@ -48,44 +61,54 @@ end
 @inline Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 @inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
-@generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection, As::AbstractVector...)
+@generated function Base.map!(f, As::Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}...) where {N}
     expr = Expr(:block)
-    for i = 1 : num_types(tsc)
+    push!(expr.args, :(leading_tsc = first_tsc(As...)))
+    push!(expr.args, :(dest = As[1]))
+    push!(expr.args, :(args = Base.tail(As)))
+    for i = 1 : N
+        vali = Val(i)
         push!(expr.args, quote
-            let vec = tsc.data[$i], inds = tsc.indices[$i]
-                for j in linearindices(vec)
-                    element = vec[j]
-                    index = inds[j]
-                    dest[index] = f(element, Base.ith_all(index, As)...)
+            # TODO: check that indices match
+            let inds = leading_tsc.indices[$i]
+                for j in linearindices(inds)
+                    vecindex = inds[j]
+                    _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
                 end
             end
         end)
     end
-    push!(expr.args, :(return nothing))
-    expr
+    quote
+        $expr
+        nothing
+    end
 end
 
-@generated function Base.foreach(f, tsc::TypeSortedCollection, As::AbstractVector...)
+@generated function Base.foreach(f, As::Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}...) where {N}
     expr = Expr(:block)
-    for i = 1 : num_types(tsc)
+    push!(expr.args, :(leading_tsc = first_tsc(As...)))
+    for i = 1 : N
+        vali = Val(i)
         push!(expr.args, quote
-            let vec = tsc.data[$i], inds = tsc.indices[$i]
-                for j in linearindices(vec)
-                    element = vec[j]
-                    index = inds[j]
-                    f(element, Base.ith_all(index, As)...)
+            # TODO: check that indices match
+            let inds = leading_tsc.indices[$i]
+                for j in linearindices(inds)
+                    vecindex = inds[j]
+                    f(_getindex_all($vali, j, vecindex, As...)...)
                 end
             end
         end)
     end
-    push!(expr.args, :(return nothing))
-    expr
+    quote
+        $expr
+        nothing
+    end
 end
 
-@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection)
+@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection{<:Any, N}) where {N}
     expr = Expr(:block)
     push!(expr.args, :(ret = Base.r_promote(op, v0)))
-    for i = 1 : num_types(tsc)
+    for i = 1 : N
         push!(expr.args, quote
             let vec = tsc.data[$i]
                 ret = mapreduce(f, op, ret, vec)
