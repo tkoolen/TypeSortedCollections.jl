@@ -30,7 +30,6 @@ function TypeSortedCollection(A)
     TypeSortedCollection{D}(A)
 end
 
-# not type stable
 function Base.append!(dest::TypeSortedCollection, A)
     type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltype.(dest.data)))
     index = length(dest)
@@ -43,20 +42,17 @@ function Base.append!(dest::TypeSortedCollection, A)
     dest
 end
 
-# type stable
-Base.length(x::TypeSortedCollection) = sum(length, x.data)
+@inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
-# type stable
 @generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}
     expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
     for i = 1 : fieldcount(D)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
-                for j in eachindex(vec)
+                for j in linearindices(vec)
                     element = vec[j]
                     index = inds[j]
-                    dest[index] = f(element, getindex.(As, index)...)
+                    dest[index] = f(element, Base.ith_all(index, As)...)
                 end
             end
         end)
@@ -65,17 +61,15 @@ Base.length(x::TypeSortedCollection) = sum(length, x.data)
     expr
 end
 
-# type stable
 @generated function Base.foreach(f, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}
     expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
     for i = 1 : fieldcount(D)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
                 for j in eachindex(vec)
                     element = vec[j]
                     index = inds[j]
-                    f(element, getindex.(As, index)...)
+                    f(element, Base.ith_all(index, As)...)
                 end
             end
         end)
