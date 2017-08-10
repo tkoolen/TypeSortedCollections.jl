@@ -2,14 +2,15 @@ using TypeSortedCollections
 using Base.Test
 
 @testset "length" begin
-    x = [3.; 4; 5]
+    x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
     @test length(sortedx) == length(x)
 end
 
 @testset "map! no args" begin
-    x = [3.; 4; 5]
+    x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
+    @test length(sortedx.data) == 2
     f(x::Int64) = 3 * x
     f(x::Float64) = round(Int64, x / 2)
     results = similar(x, Int64)
@@ -20,7 +21,7 @@ end
 end
 
 @testset "map! with args" begin
-    x = [3.; 4; 5]
+    x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
     y1 = rand(length(x))
     y2 = rand(Int, length(x))
@@ -34,14 +35,15 @@ end
 end
 
 @testset "foreach" begin
-    x = [4.; 5; 3.; Float32(6)]
+    x = Number[4.; 5; 3.; Float32(6)]
     sortedx = TypeSortedCollection(x)
+    @test length(sortedx.data) == 3
     results = []
     foreach(sortedx) do x
         push!(results, x * 4.)
     end
     for (index, element) in enumerate(x)
         @test results[index] isa Float64
-        @test element * 4. in results[index]
+        @test element * 4. in results
     end
 end

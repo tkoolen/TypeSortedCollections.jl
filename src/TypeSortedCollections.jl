@@ -3,17 +3,20 @@ module TypeSortedCollections
 export
     TypeSortedCollection
 
+using Compat
+
 const TupleOfVectors = Tuple{Vararg{Vector{T} where T}}
 
-struct TypeSortedCollection{D<:TupleOfVectors}
+struct TypeSortedCollection{D<:TupleOfVectors, N}
     data::D
-    indices::Tuple{Vector{Int}}
+    indices::NTuple{N, Vector{Int}}
 
     function TypeSortedCollection{D}() where {D<:TupleOfVectors}
         eltypes = eltype.([D.parameters...])
         data = tuple((T[] for T in eltypes)...)
         indices = tuple((Int[] for i in eachindex(eltypes))...)
-        new{D}(data, indices)
+        N = length(indices)
+        new{D, N}(data, indices)
     end
 
     function TypeSortedCollection{D}(A) where {D<:TupleOfVectors}
@@ -47,7 +50,7 @@ Base.length(x::TypeSortedCollection) = sum(length, x.data)
 @generated function Base.map!(f, dest::AbstractVector, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
-    for i = 1 : nfields(D)
+    for i = 1 : fieldcount(D)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
                 for j in eachindex(vec)
@@ -66,7 +69,7 @@ end
 @generated function Base.foreach(f, tsc::TypeSortedCollection{D}, As::AbstractVector...) where {D}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
-    for i = 1 : nfields(D)
+    for i = 1 : fieldcount(D)
         push!(expr.args, quote
             let vec = tsc.data[$i], inds = tsc.indices[$i]
                 for j in eachindex(vec)
