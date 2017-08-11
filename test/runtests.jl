@@ -29,7 +29,7 @@ end
     results = similar(x, Int64)
     map!(M.f, results, sortedx)
     allocations = @allocated map!(M.f, results, sortedx)
-    @test_broken allocations == 0
+    @test allocations == 0
     for (index, element) in enumerate(x)
         @test results[index] == M.f(element)
     end

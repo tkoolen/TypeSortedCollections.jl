@@ -1,3 +1,5 @@
+__precompile__()
+
 module TypeSortedCollections
 
 export
@@ -53,12 +55,12 @@ end
 end
 
 # inspired by Base.ith_all
-@inline _getindex_all(i, j, vecindex, ::Tuple{}) = ()
-@inline _getindex_all(i, j, vecindex, as) = (_getindex(i, j, vecindex, as[1]), _getindex_all(i, j, vecindex, Base.tail(as))...)
-@inline _getindex(i, j, vecindex, a::AbstractVector) = a[vecindex]
-@inline _getindex(i, j, vecindex, a::TypeSortedCollection) = a.data[i][j]
-@inline _setindex!(i, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
-@inline _setindex!(i, j, vecindex, a::TypeSortedCollection, val) = a.data[i][j] = val
+@inline _getindex_all(::Val, j, vecindex, ::Tuple{}) = ()
+@inline _getindex_all(vali::Val{i}, j, vecindex, as) where {i} = (_getindex(vali, j, vecindex, as[1]), _getindex_all(vali, j, vecindex, Base.tail(as))...)
+@inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
+@inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
+@inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
+@inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
 
 function Base.append!(dest::TypeSortedCollection, A)
     eltypes = map(eltype, dest.data)
@@ -89,10 +91,10 @@ end
     for i = 1 : N
         push!(expr.args, quote
             # TODO: check that indices match
-            let inds = leading_tsc.indices[$i]
+            let inds = leading_tsc.indices[$i], vali = Val($i)
                 for j in linearindices(inds)
                     vecindex = inds[j]
-                    _setindex!($i, j, vecindex, dest, f(_getindex_all($i, j, vecindex, args)...))
+                    _setindex!(vali, j, vecindex, dest, f(_getindex_all(vali, j, vecindex, args)...))
                 end
             end
         end)
@@ -112,10 +114,10 @@ end
     for i = 1 : N
         push!(expr.args, quote
             # TODO: check that indices match
-            let inds = leading_tsc.indices[$i]
+            let inds = leading_tsc.indices[$i], vali = Val($i)
                 for j in linearindices(inds)
                     vecindex = inds[j]
-                    f(_getindex_all($i, j, vecindex, As)...)
+                    f(_getindex_all(vali, j, vecindex, As)...)
                 end
             end
         end)
