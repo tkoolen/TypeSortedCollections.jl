@@ -51,9 +51,8 @@ Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 Base.length(x::TypeSortedCollection) = sum(length, x.data)
 
 # Trick from StaticArrays:
-@inline first_tsc(a1::TypeSortedCollection, as...) = a1
-@inline first_tsc(a1, as...) = first_tsc(as...)
-@inline first_tsc() = throw(ArgumentError("No TypeSortedCollection found in argument list"))
+@inline first_tsc(a1::TypeSortedCollection, as::Union{<:TypeSortedCollection, AbstractVector}...) = a1
+@inline first_tsc(a1, as::Union{<:TypeSortedCollection, AbstractVector}...) = first_tsc(as...)
 
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()
