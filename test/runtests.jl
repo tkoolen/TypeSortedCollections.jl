@@ -7,6 +7,7 @@ f(x::Float64) = round(Int64, x / 2)
 
 g(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
 g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
+g(x::Float32, y1::Float64, y2::Int64) = x - y1 + y2
 end
 
 @testset "general collection interface" begin
@@ -42,7 +43,7 @@ end
     results = similar(x, Float64)
     map!(M.g, results, sortedx, y1, y2)
     allocations = @allocated map!(M.g, results, sortedx, y1, y2)
-    @test_broken allocations == 0
+    @test allocations == 0
     for (index, element) in enumerate(x)
         @test results[index] == M.g(element, y1[index], y2[index])
     end
@@ -59,12 +60,19 @@ end
     for (index, element) in enumerate(x)
         @test element * 4. in results
     end
+    y1 = rand(length(x))
+    y2 = rand(Int, length(x))
+    foreach(M.g, sortedx, y1, y2)
+    allocations = @allocated foreach(M.g, sortedx, y1, y2)
+    @test allocations == 0
 end
 
 @testset "append!" begin
     x = Number[4.; 5; 3.]
     sortedx = TypeSortedCollection(x)
     @test_throws ArgumentError append!(sortedx, [Float32(6)])
+    append!(sortedx, x)
+    @test length(sortedx) == 2 * length(x)
 end
 
 @testset "mapreduce" begin
