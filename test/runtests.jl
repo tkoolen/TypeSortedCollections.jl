@@ -115,3 +115,14 @@ end
     y2 = rand(Int, length(x))
     foreach(M.g, sortedx, sortedy1, y2)
 end
+
+@testset "preserve order" begin
+    x = Number[3.; 4; 5; 6.]
+    sortedx1 = TypeSortedCollection(x)
+    sortedx2 = TypeSortedCollection(x, true)
+    @test num_types(sortedx1) == 2
+    @test num_types(sortedx2) == 3
+    xback = similar(x)
+    map!(identity, xback, sortedx2)
+    @test all(x .== xback)
+end

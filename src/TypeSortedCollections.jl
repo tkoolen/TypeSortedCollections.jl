@@ -3,7 +3,8 @@ __precompile__()
 module TypeSortedCollections
 
 export
-    TypeSortedCollection
+    TypeSortedCollection,
+    num_types
 
 using Compat
 
@@ -30,10 +31,25 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     end
 end
 
-function TypeSortedCollection(A)
-    types = unique(typeof.(A))
-    D = Tuple{[Vector{T} for T in types]...}
-    TypeSortedCollection{D}(A)
+function TypeSortedCollection(A, preserve_order::Bool = false)
+    if preserve_order
+        data = Vector[]
+        indices = Vector{Vector{Int}}()
+        for (i, x) in enumerate(A)
+            T = typeof(x)
+            if isempty(data) || T != eltype(last(data))
+                push!(data, T[])
+                push!(indices, Int[])
+            end
+            push!(last(data), x)
+            push!(last(indices), i)
+        end
+        TypeSortedCollection(tuple(data...), tuple(indices...))
+    else
+        types = unique(typeof.(A))
+        D = Tuple{[Vector{T} for T in types]...}
+        TypeSortedCollection{D}(A)
+    end
 end
 
 function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
@@ -66,6 +82,9 @@ function Base.append!(dest::TypeSortedCollection, A)
     end
     dest
 end
+
+Base.@pure num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
+num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
