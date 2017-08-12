@@ -122,7 +122,7 @@ end
     sortedx2 = TypeSortedCollection(x, true)
     @test num_types(sortedx1) == 2
     @test num_types(sortedx2) == 3
-    xback = similar(x)
-    map!(identity, xback, sortedx2)
-    @test all(x .== xback)
+    results = Number[]
+    foreach(x -> push!(results, x), sortedx2)
+    @test all(x .== results)
 end
