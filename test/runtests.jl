@@ -105,3 +105,13 @@ end
         @test (@allocated mapreduce(M.f, +, v0, sortedx)) == 0
     end
 end
+
+@testset "matching indices" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    y1 = [7.; 8.; 9.]
+    sortedy1 = TypeSortedCollection(y1, indices(sortedx))
+    @test length(sortedy1.data) == length(sortedx.data)
+    y2 = rand(Int, length(x))
+    foreach(M.g, sortedx, sortedy1, y2)
+end

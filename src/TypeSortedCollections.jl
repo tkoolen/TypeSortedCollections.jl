@@ -13,6 +13,10 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     data::D
     indices::NTuple{N, Vector{Int}}
 
+    function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
+        new{D, N}(data, indices)
+    end
+
     function TypeSortedCollection{D}() where {D<:TupleOfVectors}
         eltypes = map(eltype, D.parameters)
         data = tuple((T[] for T in eltypes)...)
@@ -32,6 +36,23 @@ function TypeSortedCollection(A)
     TypeSortedCollection{D}(A)
 end
 
+function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
+    @assert length(A) == sum(length, indices)
+    data = []
+    for indicesvec in indices
+        @assert length(indicesvec) > 0
+        T = typeof(A[indicesvec[1]])
+        Tdata = Vector{T}()
+        sizehint!(Tdata, length(indicesvec))
+        push!(data, Tdata)
+        for i in indicesvec
+            A[i]::T
+            push!(Tdata, A[i])
+        end
+    end
+    TypeSortedCollection(tuple(data...), indices)
+end
+
 function Base.append!(dest::TypeSortedCollection, A)
     eltypes = map(eltype, dest.data)
     type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltypes))
@@ -49,6 +70,7 @@ end
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 Base.length(x::TypeSortedCollection) = sum(length, x.data)
+Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
 
 # Trick from StaticArrays:
 @inline first_tsc(a1::TypeSortedCollection, as::Union{<:TypeSortedCollection, AbstractVector}...) = a1
