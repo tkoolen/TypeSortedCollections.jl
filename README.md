@@ -32,12 +32,13 @@ julia> map!(f, results, sortedxs, ys)
 julia> @allocated map!(f, results, sortedxs, ys)
 0
 ```
-
+# Use cases
 `TypeSortedCollection`s are appropriate when the number of different types in a heterogeneous collection is (much) smaller than the number of elements of the collection. If the number of types is approximately the same as the number of elements, a plain `Tuple` may be a better choice.
 
 Note that construction of a `TypeSortedCollection` is of course not type stable, so the intended usage is not to construct `TypeSortedCollection`s in tight loops.
 
-By default, `TypeSortedCollection`s do not preserve order, in the sense that the order in which elements are processed in `map!`, `foreach`, and `mapreduce` will not be the same as if these functions were called on the original type-heterogeneous vector:
+# Iteration order
+By default, `TypeSortedCollection`s do not preserve iteration order, in the sense that the order in which elements are processed in `map!`, `foreach`, and `mapreduce` will not be the same as if these functions were called on the original type-heterogeneous vector:
 ```julia
 julia> xs = Number[1.; 2; 3.];
 
@@ -49,7 +50,7 @@ julia> foreach(println, sortedxs)
 2
 ```
 
-If this is not desired, a `TypeSortedCollection` that does preserve order can be constructed by passing in an additional constructor argument:
+If this is not desired, a `TypeSortedCollection` that *does* preserve order can be constructed by passing in an additional constructor argument:
 ```julia
 julia> xs = Number[1.; 2; 3.];
 
@@ -60,7 +61,7 @@ julia> foreach(println, sortedxs)
 2
 3.0
 ```
-The cost of preserving order is that the number of `Vector`s stored in the `TypeSortedCollection` is equal to the number of contiguous subsequences of the input collection that have the same type, as opposed to simply the number of different types in the input collection. Note that calls to `map!` and `foreach` with both `TypeSortedCollection` and `AbstractVector` arguments are correctly indexed, regardless of whether order is preserved:
+The cost of preserving order is that the number of `Vector`s stored in the `TypeSortedCollection` becomes equal to the number of contiguous subsequences of the input collection that have the same type, as opposed to simply the number of different types in the input collection. Note that calls to `map!` and `foreach` with both `TypeSortedCollection` and `AbstractVector` arguments are correctly indexed, regardless of whether order is preserved:
 
 ```julia
 julia> xs = Number[1.; 2; 3.];
@@ -74,4 +75,39 @@ julia> map!(identity, results, sortedxs) # results of applying `identity` end up
  1.0
  2  
  3.0
+```
+
+# Working with multiple `TypeSortedCollections`
+Consider the following example:
+```julia
+julia> xs = Number[Float32(1); 2; 3.; 4.];
+
+julia> ys = Number[1.; 2.; 3; 4];
+
+julia> results = Vector{Float64}(4);
+
+julia> sortedxs = TypeSortedCollection(xs);
+
+julia> sortedys = TypeSortedCollection(ys);
+
+julia> map!(*, results, sortedxs, sortedys) # Error!
+```
+The error happens because `xs` and `ys` don't have the same number of different element types. This problem can be solved by aligning the indices of `sortedys` with those of `sortedxs`:
+```julia
+julia> xs = Number[Float32(1); 2; 3.; 4.];
+
+julia> ys = Number[1.; 2.; 3; 4];
+
+julia> results = Vector{Float64}(4);
+
+julia> sortedxs = TypeSortedCollection(xs);
+
+julia> sortedys = TypeSortedCollection(ys, indices(sortedxs));
+
+julia> map!(*, results, sortedxs, sortedys) # Error!
+4-element Array{Float64,1}:
+  1.0
+  4.0
+  9.0
+ 16.0
 ```
