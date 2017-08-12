@@ -52,7 +52,7 @@ julia> foreach(println, sortedxs)
 2
 ```
 
-If this is not desired, a `TypeSortedCollection` that *does* preserve order can be constructed by passing in an additional constructor argument:
+If this is not desired, a `TypeSortedCollection` that *does* preserve iteration order can be constructed by passing in an additional constructor argument:
 ```julia
 julia> xs = Number[1.; 2; 3.];
 
@@ -63,12 +63,12 @@ julia> foreach(println, sortedxs)
 2
 3.0
 ```
-The cost of preserving order is that the number of `Vector`s stored in the `TypeSortedCollection` becomes equal to the number of contiguous subsequences of the input collection that have the same type, as opposed to simply the number of different types in the input collection. Note that calls to `map!` and `foreach` with both `TypeSortedCollection` and `AbstractVector` arguments are correctly indexed, regardless of whether order is preserved:
+The cost of preserving iteration order is that the number of `Vector`s stored in the `TypeSortedCollection` becomes equal to the number of contiguous subsequences of the input collection that have the same type, as opposed to simply the number of different types in the input collection. Note that calls to `map!` and `foreach` with both `TypeSortedCollection` and `AbstractVector` arguments are correctly indexed, regardless of whether iteration order is preserved:
 
 ```julia
 julia> xs = Number[1.; 2; 3.];
 
-julia> sortedxs = TypeSortedCollection(xs); # doesn't preserve order
+julia> sortedxs = TypeSortedCollection(xs); # doesn't preserve iteration order
 
 julia> results = similar(xs);
 
