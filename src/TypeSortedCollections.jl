@@ -32,19 +32,6 @@ function TypeSortedCollection(A)
     TypeSortedCollection{D}(A)
 end
 
-# Trick from StaticArrays:
-@inline first_tsc(a1::TypeSortedCollection, as...) = a1
-@inline first_tsc(a1, as...) = first_tsc(as...)
-@inline first_tsc() = throw(ArgumentError("No TypeSortedCollection found in argument list"))
-
-# inspired by Base.ith_all
-@inline _getindex_all(::Val, j, vecindex) = ()
-@inline _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
-@inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
-@inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
-@inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
-@inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
-
 function Base.append!(dest::TypeSortedCollection, A)
     eltypes = map(eltype, dest.data)
     type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltypes))
@@ -59,9 +46,34 @@ function Base.append!(dest::TypeSortedCollection, A)
     dest
 end
 
-@inline Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
-@inline Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
-@inline Base.length(x::TypeSortedCollection) = sum(length, x.data)
+Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
+Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
+Base.length(x::TypeSortedCollection) = sum(length, x.data)
+
+# Trick from StaticArrays:
+@inline first_tsc(a1::TypeSortedCollection, as...) = a1
+@inline first_tsc(a1, as...) = first_tsc(as...)
+@inline first_tsc() = throw(ArgumentError("No TypeSortedCollection found in argument list"))
+
+# inspired by Base.ith_all
+@inline _getindex_all(::Val, j, vecindex) = ()
+@inline _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
+@inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
+@inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
+@inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
+@inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
+
+@inline indices_match(::Val, indices::Vector{Int}, ::AbstractVector) = true
+@inline function indices_match(::Val{i}, indices::Vector{Int}, tsc::TypeSortedCollection) where {i}
+    tsc_indices = tsc.indices[i]
+    length(indices) == length(tsc_indices) || return false
+    @inbounds for j in eachindex(indices, tsc_indices)
+        indices[j] == tsc_indices[j] || return false
+    end
+    true
+end
+@inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
+@noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
 @generated function Base.map!(f, As::Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}...) where {N}
     expr = Expr(:block)
@@ -71,8 +83,8 @@ end
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
-            # TODO: check that indices match
             let inds = leading_tsc.indices[$i]
+                @boundscheck indices_match($vali, inds, As...) || indices_match_fail()
                 for j in linearindices(inds)
                     vecindex = inds[j]
                     _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
@@ -92,8 +104,8 @@ end
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
-            # TODO: check that indices match
             let inds = leading_tsc.indices[$i]
+                @boundscheck indices_match($vali, inds, As...) || indices_match_fail()
                 for j in linearindices(inds)
                     vecindex = inds[j]
                     f(_getindex_all($vali, j, vecindex, As...)...)
@@ -117,8 +129,10 @@ end
             end
         end)
     end
-    push!(expr.args, :(return ret))
-    expr
+    quote
+        $expr
+        return ret
+    end
 end
 
 end # module
