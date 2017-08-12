@@ -84,7 +84,7 @@ julia> xs = Number[Float32(1); 2; 3.; 4.];
 
 julia> ys = Number[1.; 2.; 3; 4];
 
-julia> results = Vector{Float64}(4);
+julia> results = Vector{Float64}(length(xs));
 
 julia> sortedxs = TypeSortedCollection(xs);
 
@@ -98,7 +98,7 @@ julia> xs = Number[Float32(1); 2; 3.; 4.];
 
 julia> ys = Number[1.; 2.; 3; 4];
 
-julia> results = Vector{Float64}(4);
+julia> results = Vector{Float64}(length(xs));
 
 julia> sortedxs = TypeSortedCollection(xs);
 
