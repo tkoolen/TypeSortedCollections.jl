@@ -7,6 +7,8 @@ f(x::Float64) = round(Int64, x / 2)
 
 g(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
 g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
+g(x::Int64, y1::Float64, y2::Float64) = x * y1 - y2
+g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 end
 
 @testset "general collection interface" begin
@@ -41,17 +43,36 @@ end
     y2 = rand(Int, length(x))
     results = similar(x, Float64)
     map!(M.g, results, sortedx, y1, y2)
-    allocations = @allocated map!(M.g, results, sortedx, y1, y2)
-    @test allocations == 0
     for (index, element) in enumerate(x)
         @test results[index] == M.g(element, y1[index], y2[index])
     end
+    allocations = @allocated map!(M.g, results, sortedx, y1, y2)
+    @test allocations == 0
+
+    y2 = Number[7.; 8; 9]
+    sortedy2 = TypeSortedCollection(y2)
+    map!(M.g, results, sortedx, y1, sortedy2)
+    for (index, element) in enumerate(x)
+        @test results[index] == M.g(element, y1[index], y2[index])
+    end
+    allocations = @allocated map!(M.g, results, sortedx, y1, sortedy2)
+    @test allocations == 0
+end
+
+@testset "map indices mismatch" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    y1 = rand(length(x))
+    y2 = Number[8; 9; Float32(7)]
+    sortedy2 = TypeSortedCollection(y2)
+    results = similar(x, Float64)
+    @test_throws ArgumentError map!(M.g, results, sortedx, y1, sortedy2)
 end
 
 @testset "foreach" begin
-    x = Number[4.; 5; 3.; Float32(6)]
+    x = Number[4.; 5; 3.]
     sortedx = TypeSortedCollection(x)
-    @test length(sortedx.data) == 3
+    @test length(sortedx.data) == 2
     results = []
     foreach(sortedx) do x
         push!(results, x * 4.)
@@ -59,12 +80,21 @@ end
     for (index, element) in enumerate(x)
         @test element * 4. in results
     end
+
+    y1 = rand(length(x))
+    y2 = Number[7.; 8; 9.]
+    sortedy2 = TypeSortedCollection(y2)
+    foreach(M.g, sortedx, y1, sortedy2)
+    allocations = @allocated foreach(M.g, sortedx, y1, sortedy2)
+    @test allocations == 0
 end
 
 @testset "append!" begin
     x = Number[4.; 5; 3.]
     sortedx = TypeSortedCollection(x)
     @test_throws ArgumentError append!(sortedx, [Float32(6)])
+    append!(sortedx, x)
+    @test length(sortedx) == 2 * length(x)
 end
 
 @testset "mapreduce" begin
