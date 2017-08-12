@@ -106,7 +106,7 @@ julia> sortedxs = TypeSortedCollection(xs);
 
 julia> sortedys = TypeSortedCollection(ys, indices(sortedxs));
 
-julia> map!(*, results, sortedxs, sortedys) # Error!
+julia> map!(*, results, sortedxs, sortedys)
 4-element Array{Float64,1}:
   1.0
   4.0
