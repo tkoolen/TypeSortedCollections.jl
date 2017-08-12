@@ -7,6 +7,7 @@ f(x::Float64) = round(Int64, x / 2)
 
 g(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
 g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
+g(x::Float32, y1::Float64, y2::Int64) = x - y1 + y2
 end
 
 @testset "general collection interface" begin
@@ -59,6 +60,11 @@ end
     for (index, element) in enumerate(x)
         @test element * 4. in results
     end
+    y1 = rand(length(x))
+    y2 = rand(Int, length(x))
+    foreach(M.g, x, y1, y2)
+    allocations = @allocated foreach(M.g, x, y1, y2)
+    @test_broken allocations == 0
 end
 
 @testset "append!" begin
