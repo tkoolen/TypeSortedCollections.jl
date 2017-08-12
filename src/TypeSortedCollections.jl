@@ -5,6 +5,8 @@ module TypeSortedCollections
 export
     TypeSortedCollection
 
+using Compat
+
 const TupleOfVectors = Tuple{Vararg{Vector{T} where T}}
 
 struct TypeSortedCollection{D<:TupleOfVectors, N}
