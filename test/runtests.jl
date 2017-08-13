@@ -1,5 +1,8 @@
-using TypeSortedCollections
 using Base.Test
+
+base_ambiguities = detect_ambiguities(Base, Core)
+
+using TypeSortedCollections
 
 module M
 f(x::Int64) = 3 * x
@@ -9,6 +12,11 @@ g(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
 g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
 g(x::Int64, y1::Float64, y2::Float64) = x * y1 - y2
 g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
+end
+
+@testset "ambiguities" begin
+    tsc_ambiguities = setdiff(detect_ambiguities(TypeSortedCollections, Base, Core), base_ambiguities)
+    @test isempty(tsc_ambiguities)
 end
 
 @testset "general collection interface" begin

@@ -115,16 +115,14 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f, As::Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}...) where {N}
+@generated function Base.map!(f, dest::Union{TypeSortedCollection{<:Any, N}, AbstractArray}, args::Union{TypeSortedCollection{<:Any, N}, AbstractArray}...) where {N}
     expr = Expr(:block)
-    push!(expr.args, :(leading_tsc = first_tsc(As...)))
-    push!(expr.args, :(dest = As[1]))
-    push!(expr.args, :(args = Base.tail(As)))
+    push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
-                @boundscheck indices_match($vali, inds, As...) || indices_match_fail()
+                @boundscheck indices_match($vali, inds, dest, args...) || indices_match_fail()
                 for j in linearindices(inds)
                     vecindex = inds[j]
                     _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
