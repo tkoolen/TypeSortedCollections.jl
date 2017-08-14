@@ -29,6 +29,12 @@ end
     @test isempty(sortedx)
 end
 
+@testset "empty input" begin
+    x = Number[]
+    sortedx = TypeSortedCollection(x)
+    @test isempty(sortedx)
+end
+
 @testset "map! no args" begin
     x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
