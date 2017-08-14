@@ -37,7 +37,7 @@ julia> @allocated map!(f, results, sortedxs, ys)
 
 Note that construction of a `TypeSortedCollection` is of course not type stable, so the intended usage is not to construct `TypeSortedCollection`s in tight loops.
 
-See also [FunctionWrappers.jl](https://github.com/yuyichao/FunctionWrappers.jl) for a solution to the related problem of storing and calling multiple callables in a type-stable manner.
+See also [FunctionWrappers.jl](https://github.com/yuyichao/FunctionWrappers.jl) for a solution to the related problem of storing and calling multiple callables in a type-stable manner, and [Unrolled.jl](https://github.com/cstjean/Unrolled.jl) for a macro-based solution.
 
 # Iteration order
 By default, `TypeSortedCollection`s do not preserve iteration order, in the sense that the order in which elements are processed in `map!`, `foreach`, and `mapreduce` will not be the same as if these functions were called on the original type-heterogeneous vector:
@@ -96,14 +96,6 @@ julia> map!(*, results, sortedxs, sortedys) # Error!
 ```
 The error happens because `xs` and `ys` don't have the same number of different element types. This problem can be solved by aligning the indices of `sortedys` with those of `sortedxs`:
 ```julia
-julia> xs = Number[Float32(1); 2; 3.; 4.];
-
-julia> ys = Number[1.; 2.; 3; 4];
-
-julia> results = Vector{Float64}(length(xs));
-
-julia> sortedxs = TypeSortedCollection(xs);
-
 julia> sortedys = TypeSortedCollection(ys, indices(sortedxs));
 
 julia> map!(*, results, sortedxs, sortedys)
