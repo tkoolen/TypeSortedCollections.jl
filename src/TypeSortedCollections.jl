@@ -14,22 +14,21 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     data::D
     indices::NTuple{N, Vector{Int}}
 
-    function TypeSortedCollection{D}() where {D<:TupleOfVectors}
-        eltypes = map(eltype, D.parameters)
-        data = tuple((T[] for T in eltypes)...)
-        indices = tuple((Int[] for i in eachindex(eltypes))...)
-        N = length(indices)
+    function TypeSortedCollection{D, N}() where {D<:TupleOfVectors, N}
+        fieldcount(D) == N || error()
+        data = tuple((T[] for T in D.parameters)...)
+        indices = tuple((Int[] for i in eachindex(data))...)
         new{D, N}(data, indices)
     end
 
-    function TypeSortedCollection{D}(A) where {D<:TupleOfVectors}
-        append!(TypeSortedCollection{D}(), A)
-    end
+    TypeSortedCollection{D}() where {D<:TupleOfVectors} = TypeSortedCollection{D, length(D.parameters)}()
+    TypeSortedCollection{D, N}(A) where {D<:TupleOfVectors, N} = append!(TypeSortedCollection{D, N}(), A)
+    TypeSortedCollection{D}(A) where {D<:TupleOfVectors} = append!(TypeSortedCollection{D}(), A)
 
     function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
         fieldcount(D) == N || error()
-        l = sum(length, data)
-        l == sum(length, indices) || error()
+        l = mapreduce(length, +, 0, data)
+        l == mapreduce(length, +, 0, indices) || error()
         allindices = Base.Iterators.flatten(indices)
         allunique(allindices) || error()
         extrema(allindices) == (1, l) || error()
@@ -94,7 +93,7 @@ num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
-Base.length(x::TypeSortedCollection) = sum(length, x.data)
+Base.length(x::TypeSortedCollection) = mapreduce(length, +, 0, x.data)
 Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
 
 # Trick from StaticArrays:
