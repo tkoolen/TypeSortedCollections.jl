@@ -14,10 +14,6 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     data::D
     indices::NTuple{N, Vector{Int}}
 
-    function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
-        new{D, N}(data, indices)
-    end
-
     function TypeSortedCollection{D}() where {D<:TupleOfVectors}
         eltypes = map(eltype, D.parameters)
         data = tuple((T[] for T in eltypes)...)
@@ -28,6 +24,16 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
 
     function TypeSortedCollection{D}(A) where {D<:TupleOfVectors}
         append!(TypeSortedCollection{D}(), A)
+    end
+
+    function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
+        fieldcount(D) == N || error()
+        l = sum(length, data)
+        l == sum(length, indices) || error()
+        allindices = Base.Iterators.flatten(indices)
+        allunique(allindices) || error()
+        extrema(allindices) == (1, l) || error()
+        new{D, N}(data, indices)
     end
 end
 
@@ -97,11 +103,15 @@ Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little diffe
 
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()
-@inline _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
+Base.@propagate_inbounds _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
 @inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
 @inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
 @inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
 @inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
+
+@inline lengths_match(l::Int) = true
+@inline lengths_match(l::Int, a1, as...) = length(a1) == l && lengths_match(l, as...)
+@noinline lengths_match_fail() = throw(DimensionMismatch("Lengths of input collections do not match."))
 
 @inline indices_match(::Val, indices::Vector{Int}, ::AbstractVector) = true
 @inline function indices_match(::Val{i}, indices::Vector{Int}, tsc::TypeSortedCollection) where {i}
@@ -118,6 +128,7 @@ end
 @generated function Base.map!(f, dest::Union{TypeSortedCollection{<:Any, N}, AbstractArray}, args::Union{TypeSortedCollection{<:Any, N}, AbstractArray}...) where {N}
     expr = Expr(:block)
     push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
+    push!(expr.args, :(@boundscheck lengths_match(length(leading_tsc), dest, args...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
@@ -139,12 +150,13 @@ end
 @generated function Base.foreach(f, As::Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}...) where {N}
     expr = Expr(:block)
     push!(expr.args, :(leading_tsc = first_tsc(As...)))
+    push!(expr.args, :(@boundscheck lengths_match(length(leading_tsc), As...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
                 @boundscheck indices_match($vali, inds, As...) || indices_match_fail()
-                for j in linearindices(inds)
+                @inbounds for j in linearindices(inds)
                     vecindex = inds[j]
                     f(_getindex_all($vali, j, vecindex, As...)...)
                 end

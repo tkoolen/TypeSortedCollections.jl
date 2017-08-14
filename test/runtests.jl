@@ -1,7 +1,4 @@
 using Base.Test
-
-base_ambiguities = detect_ambiguities(Base, Core)
-
 using TypeSortedCollections
 
 module M
@@ -15,6 +12,7 @@ g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 end
 
 @testset "ambiguities" begin
+    base_ambiguities = detect_ambiguities(Base, Core)
     tsc_ambiguities = setdiff(detect_ambiguities(TypeSortedCollections, Base, Core), base_ambiguities)
     @test isempty(tsc_ambiguities)
 end
@@ -24,6 +22,7 @@ end
     sortedx = TypeSortedCollection(x)
     @test length(sortedx) == length(x)
     @test !isempty(sortedx)
+    @test @allocated(length(sortedx)) == 0
 
     empty!(sortedx)
     @test length(sortedx) == 0
@@ -67,7 +66,7 @@ end
     @test allocations == 0
 end
 
-@testset "map indices mismatch" begin
+@testset "map! indices mismatch" begin
     x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
     y1 = rand(length(x))
@@ -75,6 +74,15 @@ end
     sortedy2 = TypeSortedCollection(y2)
     results = similar(x, Float64)
     @test_throws ArgumentError map!(M.g, results, sortedx, y1, sortedy2)
+end
+
+@testset "map! length mismatch" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    y1 = rand(length(x) + 1)
+    y2 = rand(length(x))
+    results = similar(x, Float64)
+    @test_throws DimensionMismatch map!(M.g, results, sortedx, y1, y2)
 end
 
 @testset "foreach" begin
