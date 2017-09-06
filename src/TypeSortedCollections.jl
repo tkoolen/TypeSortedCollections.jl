@@ -108,8 +108,8 @@ Base.@propagate_inbounds _getindex_all(vali::Val{i}, j, vecindex, a1, as...) whe
 @inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
 @inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
 
-@inline lengths_match(l::Int) = true
-@inline lengths_match(l::Int, a1, as...) = length(a1) == l && lengths_match(l, as...)
+@inline lengths_match(a1) = true
+@inline lengths_match(a1, a2, as...) = length(a1) == length(a2) && lengths_match(a2, as...)
 @noinline lengths_match_fail() = throw(DimensionMismatch("Lengths of input collections do not match."))
 
 @inline indices_match(::Val, indices::Vector{Int}, ::AbstractVector) = true
@@ -128,7 +128,7 @@ end
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
-    push!(expr.args, :(@boundscheck lengths_match(length(leading_tsc), dest, args...) || lengths_match_fail()))
+    push!(expr.args, :(@boundscheck lengths_match(dest, args...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
@@ -151,7 +151,7 @@ end
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(As...)))
-    push!(expr.args, :(@boundscheck lengths_match(length(leading_tsc), As...) || lengths_match_fail()))
+    push!(expr.args, :(@boundscheck lengths_match(As...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
