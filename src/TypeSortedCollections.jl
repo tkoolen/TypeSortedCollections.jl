@@ -91,28 +91,35 @@ end
 Base.@pure num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
 num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
+const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}
+
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 Base.length(x::TypeSortedCollection) = mapreduce(length, +, 0, x.data)
 Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
 
 # Trick from StaticArrays:
-@inline first_tsc(a1::TypeSortedCollection, as::Union{<:TypeSortedCollection, AbstractVector}...) = a1
-@inline first_tsc(a1, as::Union{<:TypeSortedCollection, AbstractVector}...) = first_tsc(as...)
+@inline first_tsc(a1::TypeSortedCollection, as...) = a1
+@inline first_tsc(a1, as...) = first_tsc(as...)
+
+Base.@pure first_tsc_type(a1::Type{<:TypeSortedCollection}, as::Type...) = a1
+Base.@pure first_tsc_type(a1::Type, as::Type...) = first_tsc_type(as...)
 
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()
 Base.@propagate_inbounds _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
+@inline _getindex(::Val, j, vecindex, a) = a # for anything that's not an AbstractVector or TypeSortedCollection, don't index (for use in broadcast!)
 @inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
 @inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
 @inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
 @inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
 
 @inline lengths_match(a1) = true
-@inline lengths_match(a1, a2, as...) = length(a1) == length(a2) && lengths_match(a2, as...)
+@inline lengths_match(a1::TSCOrAbstractVector, a2::TSCOrAbstractVector, as...) = length(a1) == length(a2) && lengths_match(a2, as...)
+@inline lengths_match(a1::TSCOrAbstractVector, a2, as...) = lengths_match(a1, as...) # case: a2 is not indexable: skip it
 @noinline lengths_match_fail() = throw(DimensionMismatch("Lengths of input collections do not match."))
 
-@inline indices_match(::Val, indices::Vector{Int}, ::AbstractVector) = true
+@inline indices_match(::Val, indices::Vector{Int}, ::Any) = true
 @inline function indices_match(::Val{i}, indices::Vector{Int}, tsc::TypeSortedCollection) where {i}
     tsc_indices = tsc.indices[i]
     length(indices) == length(tsc_indices) || return false
@@ -124,7 +131,7 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f, dest::Union{TypeSortedCollection{<:Any, N}, AbstractArray}, args::Union{TypeSortedCollection{<:Any, N}, AbstractArray}...) where {N}
+@generated function Base.map!(f, dest::TSCOrAbstractVector{N}, args::TSCOrAbstractVector{N}...) where {N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
@@ -134,7 +141,7 @@ end
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
                 @boundscheck indices_match($vali, inds, dest, args...) || indices_match_fail()
-                for j in linearindices(inds)
+                @inbounds for j in linearindices(inds)
                     vecindex = inds[j]
                     _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
                 end
@@ -147,7 +154,7 @@ end
     end
 end
 
-@generated function Base.foreach(f, As::Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}...) where {N}
+@generated function Base.foreach(f, As::TSCOrAbstractVector{N}...) where {N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(As...)))
@@ -184,6 +191,38 @@ end
     quote
         $expr
         return ret
+    end
+end
+
+## broadcast!
+Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
+Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, _) = TypeSortedCollection
+Base.Broadcast.promote_containertype(_, ::Type{TypeSortedCollection}) = TypeSortedCollection
+Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, ::Type{Array}) = TypeSortedCollection # handle ambiguities with `Array`
+Base.Broadcast.promote_containertype(::Type{Array}, ::Type{TypeSortedCollection}) = TypeSortedCollection # handle ambiguities with `Array`
+
+@generated function Base.Broadcast.broadcast_c!(f, ::Type, ::Type{TypeSortedCollection}, dest::AbstractVector, A, Bs...)
+    T = first_tsc_type(A, Bs...)
+    N = num_types(T)
+    expr = Expr(:block)
+    push!(expr.args, :(Base.@_inline_meta)) # TODO: good idea?
+    push!(expr.args, :(leading_tsc = first_tsc(A, Bs...)))
+    push!(expr.args, :(@boundscheck lengths_match(dest, A, Bs...) || lengths_match_fail()))
+    for i = 1 : N
+        vali = Val(i)
+        push!(expr.args, quote
+            let inds = leading_tsc.indices[$i]
+                @boundscheck indices_match($vali, inds, A, Bs...) || indices_match_fail()
+                @inbounds for j in linearindices(inds)
+                    vecindex = inds[j]
+                    _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, A, Bs...)...))
+                end
+            end
+        end)
+    end
+    quote
+        $expr
+        dest
     end
 end
 
