@@ -141,7 +141,7 @@ end
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
                 @boundscheck indices_match($vali, inds, dest, args...) || indices_match_fail()
-                for j in linearindices(inds)
+                @inbounds for j in linearindices(inds)
                     vecindex = inds[j]
                     _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
                 end
