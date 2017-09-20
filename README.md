@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/tkoolen/TypeSortedCollections.jl.svg?branch=master)](https://travis-ci.org/tkoolen/TypeSortedCollections.jl)
 [![codecov.io](http://codecov.io/github/tkoolen/TypeSortedCollections.jl/coverage.svg?branch=master)](http://codecov.io/github/tkoolen/TypeSortedCollections.jl?branch=master)
 
-TypeSortedCollections provides the `TypeSortedCollection` type, which can be used to store type-heterogeneous data in a way that allows operations on the data to be performed in a type-stable manner. It does so by sorting a type-heterogeneous input collection by type upon construction, and storing these elements in a `Tuple` of concretely typed `Vector`s, one for each type. TypeSortedCollections provides type stable methods for `map!`, `foreach`, and `mapreduce` that take at least one `TypeSortedCollection`.
+TypeSortedCollections provides the `TypeSortedCollection` type, which can be used to store type-heterogeneous data in a way that allows operations on the data to be performed in a type-stable manner. It does so by sorting a type-heterogeneous input collection by type upon construction, and storing these elements in a `Tuple` of concretely typed `Vector`s, one for each type. TypeSortedCollections provides type stable methods for `map!`, `foreach`, `broadcast!`, and `mapreduce` that take at least one `TypeSortedCollection`.
 
 An example:
 ```julia
@@ -40,7 +40,7 @@ Note that construction of a `TypeSortedCollection` is of course not type stable,
 See also [FunctionWrappers.jl](https://github.com/yuyichao/FunctionWrappers.jl) for a solution to the related problem of storing and calling multiple callables in a type-stable manner, and [Unrolled.jl](https://github.com/cstjean/Unrolled.jl) for a macro-based solution.
 
 # Iteration order
-By default, `TypeSortedCollection`s do not preserve iteration order, in the sense that the order in which elements are processed in `map!`, `foreach`, and `mapreduce` will not be the same as if these functions were called on the original type-heterogeneous vector:
+By default, `TypeSortedCollection`s do not preserve iteration order, in the sense that the order in which elements are processed in `map!`, `foreach`, `broadcast!`, and `mapreduce` will not be the same as if these functions were called on the original type-heterogeneous vector:
 ```julia
 julia> xs = Number[1.; 2; 3.];
 
@@ -75,7 +75,7 @@ julia> results = similar(xs);
 julia> map!(identity, results, sortedxs) # results of applying `identity` end up in the right location
 3-element Array{Number,1}:
  1.0
- 2  
+ 2
  3.0
 ```
 
@@ -104,4 +104,25 @@ julia> map!(*, results, sortedxs, sortedys)
   4.0
   9.0
  16.0
+```
+
+# Broadcasting
+Broadcasting (in place) is implemented for `AbstractVector` return types:
+```julia
+julia> x = 4;
+
+julia> ys = Number[1.; 2; 3];
+
+julia> sortedys = TypeSortedCollection(ys);
+
+julia> results = similar(ys, Float64);
+
+julia> results .= x .* sortedys
+3-element Array{Float64,1}:
+  4.0
+  8.0
+ 12.0
+
+julia> @allocated results .= x .* sortedys
+0
 ```
