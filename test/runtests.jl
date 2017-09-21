@@ -13,9 +13,7 @@ g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 end
 
 @testset "ambiguities" begin
-    base_ambiguities = detect_ambiguities(Base, Core)
-    tsc_ambiguities = setdiff(detect_ambiguities(TypeSortedCollections, Base, Core), base_ambiguities)
-    @test isempty(tsc_ambiguities)
+    @test isempty(detect_ambiguities(Base, Core, TypeSortedCollections))
 end
 
 @testset "general collection interface" begin
