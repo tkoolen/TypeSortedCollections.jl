@@ -150,7 +150,21 @@ end
     @test all(x .== results)
 end
 
-@testset "broadcast!" begin
+@testset "broadcast! consecutive TypeSortedCollections" begin
+    # strangely, having this test set appear later in the code results in different behavior
+    # see https://github.com/JuliaLang/julia/pull/23800
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    y = [7.; 8.; 9.]
+    sortedy = TypeSortedCollection(y, indices(sortedx))
+    z = 3
+    results = similar(y, Float64)
+    broadcast!(M.g, results, sortedx, sortedy, z)
+    @test all(results .== M.g.(x, y, z))
+    @test (@allocated broadcast!(M.g, results, sortedx, sortedy, z)) == 0
+end
+
+@testset "broadcast! TSC Vec Number" begin
     x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
     y1 = rand(length(x))

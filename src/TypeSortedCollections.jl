@@ -198,6 +198,7 @@ end
 Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
 Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, _) = TypeSortedCollection
 Base.Broadcast.promote_containertype(_, ::Type{TypeSortedCollection}) = TypeSortedCollection
+Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, ::Type{TypeSortedCollection}) = TypeSortedCollection
 Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, ::Type{Array}) = TypeSortedCollection # handle ambiguities with `Array`
 Base.Broadcast.promote_containertype(::Type{Array}, ::Type{TypeSortedCollection}) = TypeSortedCollection # handle ambiguities with `Array`
 
