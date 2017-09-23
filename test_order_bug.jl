@@ -2,11 +2,8 @@ using Base.Test
 using TypeSortedCollections
 
 module M
-g(x::Int64, y1::Float64, y2::Int64) = x * y1 * y2
-g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
 g(x::Int64, y1::Float64, y2::Float64) = x * y1 - y2
 g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
-g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 end
 
 @testset "broadcast! length mismatch" begin
