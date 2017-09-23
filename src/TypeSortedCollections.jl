@@ -1,8 +1,7 @@
 module TypeSortedCollections
 
 export
-    TypeSortedCollection,
-    num_types
+    TypeSortedCollection
 
 const TupleOfVectors = Tuple{Vararg{Vector{T} where T}}
 
@@ -22,35 +21,14 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     TypeSortedCollection{D}(A) where {D<:TupleOfVectors} = append!(TypeSortedCollection{D}(), A)
 
     function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
-        fieldcount(D) == N || error()
-        l = mapreduce(length, +, 0, data)
-        l == mapreduce(length, +, 0, indices) || error()
-        allindices = Base.Iterators.flatten(indices)
-        allunique(allindices) || error()
-        extrema(allindices) == (1, l) || error()
         new{D, N}(data, indices)
     end
 end
 
 function TypeSortedCollection(A, preserve_order::Bool = false)
-    if preserve_order
-        data = Vector[]
-        indices = Vector{Vector{Int}}()
-        for (i, x) in enumerate(A)
-            T = typeof(x)
-            if isempty(data) || T != eltype(last(data))
-                push!(data, T[])
-                push!(indices, Int[])
-            end
-            push!(last(data), x)
-            push!(last(indices), i)
-        end
-        TypeSortedCollection(tuple(data...), tuple(indices...))
-    else
-        types = unique(typeof.(A))
-        D = Tuple{[Vector{T} for T in types]...}
-        TypeSortedCollection{D}(A)
-    end
+   types = unique(typeof.(A))
+   D = Tuple{[Vector{T} for T in types]...}
+   TypeSortedCollection{D}(A)
 end
 
 function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
@@ -83,11 +61,6 @@ function Base.append!(dest::TypeSortedCollection, A)
     end
     dest
 end
-
-Base.@pure num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
-num_types(x::TypeSortedCollection) = num_types(typeof(x))
-
-const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}
 
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
