@@ -1,8 +1,3 @@
-module A
-
-export
-    TypeSortedCollection
-
 const TupleOfVectors = Tuple{Vararg{Vector{T} where T}}
 
 struct TypeSortedCollection{D<:TupleOfVectors, N}
@@ -25,14 +20,12 @@ function Base.Broadcast.broadcast_c!(f, ::Type, ::Type{TypeSortedCollection}, de
     throw(DimensionMismatch())
 end
 
-end # module
-
 function g end
 
 using Base.Test
 @testset "broadcast! length mismatch" begin
     x = Number[3.; 4; 5]
-    sortedx = A.TypeSortedCollection(x)
+    sortedx = TypeSortedCollection(x)
     results = rand(length(x) + 1)
     y1 = rand()
     y2 = rand(Int)
@@ -41,10 +34,10 @@ end
 
 @testset "broadcast! matching indices" begin
     x = Number[3.; 4; 5]
-    sortedx = A.TypeSortedCollection(x)
+    sortedx = TypeSortedCollection(x)
     y1 = rand()
     y2 = [7.; 8.; 9.]
-    sortedy2 = A.TypeSortedCollection(y2)
+    sortedy2 = TypeSortedCollection(y2)
     results = similar(x, Float64)
     broadcast!(g, results, sortedx, y1, sortedy2)
     @allocated broadcast!(g, results, sortedx, y1, sortedy2)
