@@ -18,7 +18,7 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
 
     TypeSortedCollection{D}() where {D<:TupleOfVectors} = TypeSortedCollection{D, length(D.parameters)}()
     TypeSortedCollection{D, N}(A) where {D<:TupleOfVectors, N} = append!(TypeSortedCollection{D, N}(), A)
-    TypeSortedCollection{D}(A) where {D<:TupleOfVectors} = append!(TypeSortedCollection{D}(), A)
+    TypeSortedCollection{D}(A) where {D<:TupleOfVectors} = TypeSortedCollection{D}()
 
     function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
         new{D, N}(data, indices)
@@ -29,23 +29,6 @@ function TypeSortedCollection(A, preserve_order::Bool = false)
    types = unique(typeof.(A))
    D = Tuple{[Vector{T} for T in types]...}
    TypeSortedCollection{D}(A)
-end
-
-function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
-    @assert length(A) == sum(length, indices)
-    data = []
-    for indicesvec in indices
-        @assert length(indicesvec) > 0
-        T = typeof(A[indicesvec[1]])
-        Tdata = Vector{T}()
-        sizehint!(Tdata, length(indicesvec))
-        push!(data, Tdata)
-        for i in indicesvec
-            A[i]::T
-            push!(Tdata, A[i])
-        end
-    end
-    TypeSortedCollection(tuple(data...), indices)
 end
 
 function Base.append!(dest::TypeSortedCollection, A)

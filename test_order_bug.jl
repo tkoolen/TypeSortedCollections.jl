@@ -20,7 +20,7 @@ end
     sortedx = TypeSortedCollection(x)
     y1 = rand()
     y2 = [7.; 8.; 9.]
-    sortedy2 = TypeSortedCollection(y2, indices(sortedx))
+    sortedy2 = TypeSortedCollection(y2)#, indices(sortedx))
     results = similar(x, Float64)
     broadcast!(M.g, results, sortedx, y1, sortedy2)
     @allocated broadcast!(M.g, results, sortedx, y1, sortedy2)
