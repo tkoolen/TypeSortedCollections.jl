@@ -12,27 +12,6 @@ g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 end
 
-@testset "broadcast! Array first" begin
-    x = rand(Int, 3)
-    y = Number[3.; 4; 5.]
-    z = rand()
-    sortedy = TypeSortedCollection(y)
-    results = similar(y, Float64)
-    results .= M.g.(x, sortedy, z)
-    @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, sortedy, z)) == 0
-end
-
-@testset "broadcast! indices mismatch" begin
-    x = Number[3.; 4; 5]
-    sortedx = TypeSortedCollection(x)
-    y1 = rand()
-    y2 = Number[8; 9; Float32(7)]
-    sortedy2 = TypeSortedCollection(y2)
-    results = similar(x, Float64)
-    @test_throws ArgumentError broadcast!(M.g, results, sortedx, y1, sortedy2)
-end
-
 @testset "broadcast! length mismatch" begin
     x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
