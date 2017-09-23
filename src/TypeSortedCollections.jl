@@ -1,5 +1,3 @@
-__precompile__()
-
 module TypeSortedCollections
 
 export
@@ -96,38 +94,6 @@ Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 Base.length(x::TypeSortedCollection) = mapreduce(length, +, 0, x.data)
 Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
 
-# Trick from StaticArrays:
-@inline first_tsc(a1::TypeSortedCollection, as...) = a1
-@inline first_tsc(a1, as...) = first_tsc(as...)
-
-Base.@pure first_tsc_type(a1::Type{<:TypeSortedCollection}, as::Type...) = a1
-Base.@pure first_tsc_type(a1::Type, as::Type...) = first_tsc_type(as...)
-
-# inspired by Base.ith_all
-@inline _getindex_all(::Val, j, vecindex) = ()
-Base.@propagate_inbounds _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
-@inline _getindex(::Val, j, vecindex, a) = a # for anything that's not an AbstractVector or TypeSortedCollection, don't index (for use in broadcast!)
-@inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
-@inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
-@inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
-@inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
-
-@inline lengths_match(a1) = true
-@inline lengths_match(a1::TSCOrAbstractVector, a2::TSCOrAbstractVector, as...) = length(a1) == length(a2) && lengths_match(a2, as...)
-@inline lengths_match(a1::TSCOrAbstractVector, a2, as...) = lengths_match(a1, as...) # case: a2 is not indexable: skip it
-@noinline lengths_match_fail() = throw(DimensionMismatch("Lengths of input collections do not match."))
-
-@inline indices_match(::Val, indices::Vector{Int}, ::Any) = true
-@inline function indices_match(::Val{i}, indices::Vector{Int}, tsc::TypeSortedCollection) where {i}
-    tsc_indices = tsc.indices[i]
-    length(indices) == length(tsc_indices) || return false
-    @inbounds for j in eachindex(indices, tsc_indices)
-        indices[j] == tsc_indices[j] || return false
-    end
-    true
-end
-@inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
-@noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
 ## broadcast!
 Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
