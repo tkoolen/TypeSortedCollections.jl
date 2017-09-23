@@ -12,17 +12,6 @@ g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 end
 
-@testset "broadcast! consecutive scalars" begin
-    x = 3
-    y = 4.
-    z = Number[3.; 4; 5.]
-    sortedz = TypeSortedCollection(z)
-    results = similar(z, Float64)
-    results .= M.g.(x, y, sortedz)
-    @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, y, sortedz)) == 0
-end
-
 @testset "broadcast! Array first" begin
     x = rand(Int, 3)
     y = Number[3.; 4; 5.]
