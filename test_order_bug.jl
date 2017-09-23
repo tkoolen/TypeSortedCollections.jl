@@ -12,15 +12,6 @@ end
 @testset "broadcast! length mismatch" begin
     x = Number[3.; 4; 5]
     sortedx = TypeSortedCollection(x)
-    y1 = rand(length(x) + 1)
-    y2 = rand(length(x))
-    results = similar(x, Float64)
-    @test_throws DimensionMismatch results .= M.g.(sortedx, y1, y2)
-
-    y1 = rand()
-    y2 = rand(length(x) + 1)
-    @test_throws DimensionMismatch results .= M.g.(sortedx, y1, y2)
-
     results = rand(length(x) + 1)
     y1 = rand()
     y2 = rand(Int)
