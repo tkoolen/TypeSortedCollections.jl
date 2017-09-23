@@ -12,22 +12,6 @@ g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 end
 
-@testset "broadcast!" begin
-    x = Number[3.; 4; 5]
-    sortedx = TypeSortedCollection(x)
-    y1 = rand(length(x))
-    y2 = rand(Int)
-    results = similar(x, Float64)
-    broadcast!(M.g, results, sortedx, y1, y2)
-    @test all(results .== M.g.(x, y1, y2))
-
-    results = similar(x, Float64)
-    results .= M.g.(sortedx, y1, y2)
-    @test all(results .== M.g.(x, y1, y2))
-
-    @test (@allocated broadcast!(M.g, results, sortedx, y1, y2)) == 0
-end
-
 @testset "broadcast! with scalars and TSC as second arg" begin
     x = 3
     y = Number[3.; 4; 5]
