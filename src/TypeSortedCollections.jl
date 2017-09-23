@@ -131,69 +131,6 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f, dest::TSCOrAbstractVector{N}, args::TSCOrAbstractVector{N}...) where {N}
-    expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
-    push!(expr.args, :(@boundscheck lengths_match(dest, args...) || lengths_match_fail()))
-    for i = 1 : N
-        vali = Val(i)
-        push!(expr.args, quote
-            let inds = leading_tsc.indices[$i]
-                @boundscheck indices_match($vali, inds, dest, args...) || indices_match_fail()
-                @inbounds for j in linearindices(inds)
-                    vecindex = inds[j]
-                    _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
-                end
-            end
-        end)
-    end
-    quote
-        $expr
-        dest
-    end
-end
-
-@generated function Base.foreach(f, As::TSCOrAbstractVector{N}...) where {N}
-    expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(leading_tsc = first_tsc(As...)))
-    push!(expr.args, :(@boundscheck lengths_match(As...) || lengths_match_fail()))
-    for i = 1 : N
-        vali = Val(i)
-        push!(expr.args, quote
-            let inds = leading_tsc.indices[$i]
-                @boundscheck indices_match($vali, inds, As...) || indices_match_fail()
-                @inbounds for j in linearindices(inds)
-                    vecindex = inds[j]
-                    f(_getindex_all($vali, j, vecindex, As...)...)
-                end
-            end
-        end)
-    end
-    quote
-        $expr
-        nothing
-    end
-end
-
-@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection{<:Any, N}) where {N}
-    expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(ret = Base.r_promote(op, v0)))
-    for i = 1 : N
-        push!(expr.args, quote
-            let vec = tsc.data[$i]
-                ret = mapreduce(f, op, ret, vec)
-            end
-        end)
-    end
-    quote
-        $expr
-        return ret
-    end
-end
-
 ## broadcast!
 Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
 Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, _) = TypeSortedCollection
