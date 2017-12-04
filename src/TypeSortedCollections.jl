@@ -181,7 +181,7 @@ end
 @generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection{<:Any, N}) where {N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(ret = Base.r_promote(op, v0)))
+    push!(expr.args, :(ret = v0))
     for i = 1 : N
         push!(expr.args, quote
             let vec = tsc.data[$i]
