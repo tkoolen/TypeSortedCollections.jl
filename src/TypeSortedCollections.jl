@@ -90,7 +90,7 @@ function Base.append!(dest::TypeSortedCollection, A)
     dest
 end
 
-Base.@pure num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
+num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
 num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
 const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}
@@ -105,8 +105,8 @@ Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little diffe
 @inline first_tsc(a1::TypeSortedCollection, as...) = a1
 @inline first_tsc(a1, as...) = first_tsc(as...)
 
-Base.@pure first_tsc_type(a1::Type{<:TypeSortedCollection}, as::Type...) = a1
-Base.@pure first_tsc_type(a1::Type, as::Type...) = first_tsc_type(as...)
+@inline first_tsc_type(a1::Type{<:TypeSortedCollection}, as::Type...) = a1
+@inline first_tsc_type(a1::Type, as::Type...) = first_tsc_type(as...)
 
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()
