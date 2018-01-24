@@ -250,3 +250,11 @@ end
     @test all(results .== M.g.(x, y1, y2))
     @test (@allocated broadcast!(M.g, results, sortedx, y1, sortedy2)) == 0
 end
+
+@testset "eltype" begin
+    x = [4.; 5; 3.; Int32(2); Int16(1); "foo"]
+    let sortedx = TypeSortedCollection(x)
+        @test eltype(sortedx) == Union{Float64, Int64, Int32, Int16, String}
+        @test(@allocated(eltype(sortedx)) == 0)
+    end
+end

@@ -74,6 +74,8 @@ function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
     TypeSortedCollection(tuple(data...), indices)
 end
 
+@inline Base.eltype(A::TypeSortedCollection) = Union{map(eltype, A.data)...}
+
 function Base.append!(dest::TypeSortedCollection, A)
     eltypes = map(eltype, dest.data)
     type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltypes))
