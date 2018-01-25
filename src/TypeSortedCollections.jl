@@ -74,21 +74,32 @@ function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
     TypeSortedCollection(tuple(data...), indices)
 end
 
+@inline Base.eltype(A::TypeSortedCollection) = Union{map(eltype, A.data)...}
+
+@generated function Base.push!(dest::TypeSortedCollection{D}, x::X) where {D, X}
+    i = 0
+    for j = 1 : length(D.parameters)
+        Vector{X} == D.parameters[j] && (i = j; break)
+    end
+    i == 0 && return :(throw(ArgumentError("Destination cannot store arguments of type $(typeof(x)).")))
+    quote
+        Base.@_inline_meta
+        index = length(dest) + 1
+        push!(dest.data[$i], x)
+        push!(dest.indices[$i], index)
+        return dest
+    end
+end
+
 function Base.append!(dest::TypeSortedCollection, A)
-    eltypes = map(eltype, dest.data)
-    type_to_tuple_index = Dict(T => i for (i, T) in enumerate(eltypes))
-    index = length(dest)
+    # TODO: consider resizing first
     for x in A
-        T = typeof(x)
-        haskey(type_to_tuple_index, T) || throw(ArgumentError("Cannot store elements of type $T; must be one of $eltypes."))
-        i = type_to_tuple_index[T]
-        push!(dest.data[i], x)
-        push!(dest.indices[i], (index += 1))
+        push!(dest, x)
     end
     dest
 end
 
-Base.@pure num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
+num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
 num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
 const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}
@@ -96,15 +107,15 @@ const TSCOrAbstractArray{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractAr
 
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
-Base.length(x::TypeSortedCollection) = mapreduce(length, +, 0, x.data)
+@inline Base.length(x::TypeSortedCollection) = mapreduce(length, +, 0, x.data)
 Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
 
 # Trick from StaticArrays:
 @inline first_tsc(a1::TypeSortedCollection, as...) = a1
 @inline first_tsc(a1, as...) = first_tsc(as...)
 
-Base.@pure first_tsc_type(a1::Type{<:TypeSortedCollection}, as::Type...) = a1
-Base.@pure first_tsc_type(a1::Type, as::Type...) = first_tsc_type(as...)
+@inline first_tsc_type(a1::Type{<:TypeSortedCollection}, as::Type...) = a1
+@inline first_tsc_type(a1::Type, as::Type...) = first_tsc_type(as...)
 
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()

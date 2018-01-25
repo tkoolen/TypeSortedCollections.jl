@@ -250,3 +250,25 @@ end
     @test all(results .== M.g.(x, y1, y2))
     @test (@allocated broadcast!(M.g, results, sortedx, y1, sortedy2)) == 0
 end
+
+@testset "eltype" begin
+    x = [4.; 5; 3.; Int32(2); Int16(1); "foo"]
+    let sortedx = TypeSortedCollection(x)
+        @test eltype(sortedx) == Union{Float64, Int64, Int32, Int16, String}
+        @test(@allocated(eltype(sortedx)) == 0)
+    end
+end
+
+@testset "push!" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    @test length(sortedx) == 3
+    @test_throws ArgumentError push!(sortedx, "foo")
+    push!(sortedx, 8)
+    @test length(sortedx) == 4
+    @test mapreduce(x -> x == 8, (a, b) -> a || b, false, sortedx)
+    results = similar(x, length(sortedx))
+    map!(identity, results, sortedx)
+    @test last(results) == 8
+    @test @inferred(push!(sortedx, 1)) isa typeof(sortedx)
+end
