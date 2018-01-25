@@ -76,20 +76,20 @@ end
 
 @inline Base.eltype(A::TypeSortedCollection) = Union{map(eltype, A.data)...}
 
-@generated function Base.push!(dest::TypeSortedCollection{D}, x::X) where {D, X}
-    i = 0
-    for j = 1 : length(D.parameters)
-        Vector{X} == D.parameters[j] && (i = j; break)
-    end
-    i == 0 && return :(throw(ArgumentError("Destination cannot store arguments of type $(typeof(x)).")))
-    quote
-        Base.@_inline_meta
-        index = length(dest) + 1
-        push!(dest.data[$i], x)
-        push!(dest.indices[$i], index)
-        return dest
-    end
+# from https://discourse.julialang.org/t/type-inferable-interleave-two-tuples/1805
+_il(bs,a,arest...) = (a,_il(arest,bs...)...)
+_il(bs) = ()
+interleave(as,bs) = _il(bs,as...)
+
+function Base.push!(dest::TypeSortedCollection, x)
+    index = length(dest) + 1
+    _push!(x, index, interleave(dest.data, dest.indices)...)
+    return dest
 end
+
+_push!(x, index::Int) = throw(ArgumentError("Destination cannot store arguments of type $(typeof(x))."))
+_push!(x, index::Int, destvec, indicesvec, rest...) = _push!(x, index, rest...)
+_push!(x::T, index::Int, destvec::Vector{T}, indicesvec, rest...) where {T} = (push!(destvec, x); push!(indicesvec, index))
 
 function Base.append!(dest::TypeSortedCollection, A)
     # TODO: consider resizing first
