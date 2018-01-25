@@ -258,3 +258,17 @@ end
         @test(@allocated(eltype(sortedx)) == 0)
     end
 end
+
+@testset "push!" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    @test length(sortedx) == 3
+    @test_throws ArgumentError push!(sortedx, "foo")
+    push!(sortedx, 8)
+    @test length(sortedx) == 4
+    @test mapreduce(x -> x == 8, (a, b) -> a || b, false, sortedx)
+    results = similar(x, length(sortedx))
+    map!(identity, results, sortedx)
+    @test last(results) == 8
+    @test @inferred(push!(sortedx, 1)) isa typeof(sortedx)
+end
