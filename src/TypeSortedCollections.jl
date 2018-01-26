@@ -143,19 +143,19 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f, dest::TSCOrAbstractArray{N}, args::TSCOrAbstractArray{N}...) where {N} # TSCOrAbstract*Array* to avoid ambiguities with map!(f, ::AbstractArray, ::AbstractArray...)
+@generated function Base.map!(f, dest::TSCOrAbstractArray{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractArray{N}...) where {N} # TSCOrAbstract*Array* to avoid ambiguities with map!(f, ::AbstractArray, ::AbstractArray...)
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(leading_tsc = first_tsc(dest, args...)))
-    push!(expr.args, :(@boundscheck lengths_match(dest, args...) || lengths_match_fail()))
+    push!(expr.args, :(leading_tsc = first_tsc(dest, src1, srcs...)))
+    push!(expr.args, :(@boundscheck lengths_match(dest, src1, srcs...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
-                @boundscheck indices_match($vali, inds, dest, args...) || indices_match_fail()
+                @boundscheck indices_match($vali, inds, dest, src1, srcs...) || indices_match_fail()
                 @inbounds for j in linearindices(inds)
                     vecindex = inds[j]
-                    _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, args...)...))
+                    _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, src1, srcs...)...))
                 end
             end
         end)
@@ -166,19 +166,19 @@ end
     end
 end
 
-@generated function Base.foreach(f, As::TSCOrAbstractVector{N}...) where {N}
+@generated function Base.foreach(f, A1::TypeSortedCollection{<:Any, N}, As::TSCOrAbstractVector{N}...) where {N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(leading_tsc = first_tsc(As...)))
-    push!(expr.args, :(@boundscheck lengths_match(As...) || lengths_match_fail()))
+    push!(expr.args, :(leading_tsc = first_tsc(A1, As...)))
+    push!(expr.args, :(@boundscheck lengths_match(A1, As...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
-                @boundscheck indices_match($vali, inds, As...) || indices_match_fail()
+                @boundscheck indices_match($vali, inds, A1, As...) || indices_match_fail()
                 @inbounds for j in linearindices(inds)
                     vecindex = inds[j]
-                    f(_getindex_all($vali, j, vecindex, As...)...)
+                    f(_getindex_all($vali, j, vecindex, A1, As...)...)
                 end
             end
         end)
