@@ -15,10 +15,6 @@ notifications:
 git:
   depth: 99999999
 
-matrix:
-  allow_failures:
-    - julia: nightly
-
 ## uncomment and modify the following lines to manually install system packages
 #addons:
 #  apt: # apt-get for linux
