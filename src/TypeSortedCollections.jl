@@ -99,6 +99,12 @@ function Base.append!(dest::TypeSortedCollection, A)
     dest
 end
 
+@inline function Base.vcat(tsc::TypeSortedCollection{D, N}, x) where {D, N}
+    data = tuple(tsc.data..., [x])
+    indices = tuple(tsc.indices..., [length(tsc) + 1])
+    return TypeSortedCollection(data, indices)
+end
+
 num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
 num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
