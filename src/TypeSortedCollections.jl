@@ -103,7 +103,6 @@ num_types(::Type{<:TypeSortedCollection{<:Any, N}}) where {N} = N
 num_types(x::TypeSortedCollection) = num_types(typeof(x))
 
 const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractVector}
-const TSCOrAbstractArray{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractArray}
 
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
@@ -143,7 +142,7 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f, dest::TSCOrAbstractArray{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractArray{N}...) where {N} # TSCOrAbstract*Array* to avoid ambiguities with map!(f, ::AbstractArray, ::AbstractArray...)
+@generated function Base.map!(f, dest::TSCOrAbstractVector{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractVector{N}...) where {N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(dest, src1, srcs...)))
