@@ -119,11 +119,11 @@ Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little diffe
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()
 Base.@propagate_inbounds _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
-@inline _getindex(::Val, j, vecindex, a) = a # for anything that's not an AbstractVector or TypeSortedCollection, don't index (for use in broadcast!)
-@inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
-@inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
-@inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
-@inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
+Base.@propagate_inbounds _getindex(::Val, j, vecindex, a) = a # for anything that's not an AbstractVector or TypeSortedCollection, don't index (for use in broadcast!)
+Base.@propagate_inbounds _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
+Base.@propagate_inbounds _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
+Base.@propagate_inbounds _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
+Base.@propagate_inbounds _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
 
 @inline lengths_match(a1) = true
 @inline lengths_match(a1::TSCOrAbstractVector, a2::TSCOrAbstractVector, as...) = length(a1) == length(a2) && lengths_match(a2, as...)
