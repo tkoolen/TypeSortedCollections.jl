@@ -29,9 +29,11 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
         fieldcount(D) == N || error()
         l = mapreduce(length, +, 0, data)
         l == mapreduce(length, +, 0, indices) || error()
-        allindices = Base.Iterators.flatten(indices)
-        allunique(allindices) || error()
-        extrema(allindices) == (1, l) || error()
+        if N > 0
+            allindices = Base.Iterators.flatten(indices)
+            allunique(allindices) || error()
+            extrema(allindices) == (1, l) || error()
+        end
         new{D, N}(data, indices)
     end
 end
@@ -58,11 +60,10 @@ function TypeSortedCollection(A, preserve_order::Bool = false)
 end
 
 function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
-    @assert length(A) == sum(length, indices)
+    @assert length(A) == mapreduce(length, +, 0, indices)
     data = []
     for indicesvec in indices
-        @assert length(indicesvec) > 0
-        T = typeof(A[indicesvec[1]])
+        T = length(indicesvec) > 0 ? typeof(A[indicesvec[1]]) : Nothing
         Tdata = Vector{T}()
         sizehint!(Tdata, length(indicesvec))
         push!(data, Tdata)
