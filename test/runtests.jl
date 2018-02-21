@@ -29,9 +29,8 @@ end
 end
 
 @testset "empty input" begin
-    x = Number[]
-    sortedx = TypeSortedCollection(x)
-    @test isempty(sortedx)
+    @test isempty(TypeSortedCollection(Number[]))
+    @test isempty(TypeSortedCollection(Float64[], ()))
 end
 
 @testset "map! no args" begin
@@ -135,6 +134,14 @@ end
     @test length(sortedy1.data) == length(sortedx.data)
     y2 = rand(Int, length(x))
     foreach(M.g, sortedx, sortedy1, y2)
+end
+
+@testset "matching indices, empty index vector" begin
+    x = [3., 4.]
+    sortedx = TypeSortedCollection(x, ([1, 2], Int[]))
+    results = similar(x)
+    map!(identity, results, sortedx)
+    @test results == x
 end
 
 @testset "preserve order" begin
