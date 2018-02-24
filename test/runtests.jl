@@ -258,6 +258,16 @@ end
     @test (@allocated broadcast!(M.g, results, sortedx, y1, sortedy2)) == 0
 end
 
+@testset "broadcast! TSC destination" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    results = typeof(sortedx)(indices(sortedx))
+    results .= 3 .* sortedx
+    @test results.data[1][1] === 3 * 3.
+    @test results.data[2][1] === 3 * 4
+    @test results.data[2][2] === 3 * 5
+end
+
 @testset "eltype" begin
     x = [4.; 5; 3.; Int32(2); Int16(1); "foo"]
     let sortedx = TypeSortedCollection(x)
