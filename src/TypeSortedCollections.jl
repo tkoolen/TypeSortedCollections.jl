@@ -4,7 +4,9 @@ module TypeSortedCollections
 
 export
     TypeSortedCollection,
-    num_types
+    num_types,
+    eltypes,
+    vectortypes
 
 using Compat
 
@@ -77,6 +79,17 @@ end
 
 @inline Base.eltype(A::TypeSortedCollection) = Union{map(eltype, A.data)...}
 
+eltypes(::Type{TypeSortedCollection{D, N}}) where {D, N} = eltypes(D)
+function eltypes(::Type{T}) where {T <: TupleOfVectors}
+    Base.tuple_type_cons(eltype(Base.tuple_type_head(T)), eltypes(Base.tuple_type_tail(T)))
+end
+eltypes(::Type{Tuple{}}) = Tuple{}
+
+function vectortypes(::Type{T}) where {T <: Tuple}
+    Base.tuple_type_cons(Vector{Base.tuple_type_head(T)}, vectortypes(Base.tuple_type_tail(T)))
+end
+vectortypes(::Type{Tuple{}}) = Tuple{}
+
 @generated function Base.push!(dest::TypeSortedCollection{D}, x::X) where {D, X}
     i = 0
     for j = 1 : length(D.parameters)
@@ -119,7 +132,7 @@ Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little diffe
 
 # inspired by Base.ith_all
 @inline _getindex_all(::Val, j, vecindex) = ()
-Base.@propagate_inbounds _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
+Base.@propagate_inbounds @inline _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
 @inline _getindex(::Val, j, vecindex, a) = a # for anything that's not an AbstractVector or TypeSortedCollection, don't index (for use in broadcast!)
 @inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
 @inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]

@@ -279,3 +279,14 @@ end
     @test last(results) == 8
     @test @inferred(push!(sortedx, 1)) isa typeof(sortedx)
 end
+
+@testset "eltypes/vectortypes" begin
+    x = Number[3.; 4; 5]
+    sortedx = TypeSortedCollection(x)
+    let T = typeof(sortedx)
+        @test @inferred eltypes(T) == Tuple{Float64, Int}
+        elt = eltypes(T)
+        @test @inferred vectortypes(elt) == Tuple{Vector{Float64}, Vector{Int}}
+        @test typeof(sortedx.data) == vectortypes(elt)
+    end
+end
