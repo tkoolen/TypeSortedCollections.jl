@@ -16,28 +16,36 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
     data::D
     indices::NTuple{N, Vector{Int}}
 
-    function TypeSortedCollection{D, N}() where {D<:TupleOfVectors, N}
-        fieldcount(D) == N || error()
-        data = tuple((T[] for T in D.parameters)...)
-        indices = tuple((Int[] for i in eachindex(data))...)
-        new{D, N}(data, indices)
-    end
-
-    TypeSortedCollection{D}() where {D<:TupleOfVectors} = TypeSortedCollection{D, length(D.parameters)}()
-    TypeSortedCollection{D, N}(A) where {D<:TupleOfVectors, N} = append!(TypeSortedCollection{D, N}(), A)
-    TypeSortedCollection{D}(A) where {D<:TupleOfVectors} = append!(TypeSortedCollection{D}(), A)
-
-    function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
+    function TypeSortedCollection{D, N}(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
         fieldcount(D) == N || error()
         l = mapreduce(length, +, 0, data)
         l == mapreduce(length, +, 0, indices) || error()
         if N > 0
             allindices = Base.Iterators.flatten(indices)
             allunique(allindices) || error()
-            extrema(allindices) == (1, l) || error()
+            isempty(allindices) || extrema(allindices) == (1, l) || error()
         end
         new{D, N}(data, indices)
     end
+
+    function TypeSortedCollection{D, N}(indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
+        lengths = map(length, indices)
+        data = ntuple(i -> D.parameters[i](uninitialized, lengths[i]), N)
+        TypeSortedCollection{D, N}(data, indices)
+    end
+
+    function TypeSortedCollection{D, N}() where {D<:TupleOfVectors, N}
+        indices = ntuple(_ -> Int[], N)
+        TypeSortedCollection{D, N}(indices)
+    end
+
+    TypeSortedCollection{D}() where {D<:TupleOfVectors} = TypeSortedCollection{D, length(D.parameters)}()
+    TypeSortedCollection{D, N}(A) where {D<:TupleOfVectors, N} = append!(TypeSortedCollection{D, N}(), A)
+    TypeSortedCollection{D}(A) where {D<:TupleOfVectors} = append!(TypeSortedCollection{D}(), A)
+end
+
+function TypeSortedCollection(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
+    TypeSortedCollection{D, N}(data, indices)
 end
 
 function TypeSortedCollection(A, preserve_order::Bool = false)
