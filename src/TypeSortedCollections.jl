@@ -34,6 +34,22 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
         TypeSortedCollection{D, N}(data, indices)
     end
 
+    function TypeSortedCollection{D, N}(A, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
+        ret = TypeSortedCollection{D, N}(indices)
+        vecind = 1
+        i = 1
+        for x in A
+            while i > length(indices[vecind])
+                vecind += 1
+                @assert vecind <= N
+                i = 1
+            end
+            ret.data[vecind][i] = x
+            i += 1
+        end
+        ret
+    end
+
     function TypeSortedCollection{D, N}() where {D<:TupleOfVectors, N}
         indices = ntuple(_ -> Int[], N)
         TypeSortedCollection{D, N}(indices)
@@ -69,20 +85,25 @@ function TypeSortedCollection(A, preserve_order::Bool = false)
     end
 end
 
-function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
-    @assert length(A) == mapreduce(length, +, 0, indices)
-    data = []
-    for indicesvec in indices
-        T = length(indicesvec) > 0 ? typeof(A[indicesvec[1]]) : Nothing
-        Tdata = Vector{T}()
-        sizehint!(Tdata, length(indicesvec))
-        push!(data, Tdata)
-        for i in indicesvec
-            A[i]::T
-            push!(Tdata, A[i])
+function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}}) where {N}
+    Acollected = []
+    eltypes = Type[Nothing for i = 1 : N]
+    vecind = 1
+    i = 1
+    newvec = true
+    for x in A
+        while i > length(indices[vecind])
+            vecind += 1
+            i = 1
+            newvec = true
         end
+        newvec && (eltypes[vecind] = typeof(x))
+        push!(Acollected, x::eltypes[vecind])
+        newvec = false
+        i += 1
     end
-    TypeSortedCollection(tuple(data...), indices)
+    D = Tuple{(Vector{T} for T in eltypes)...}
+    TypeSortedCollection{D, N}(Acollected, indices)
 end
 
 @inline Base.eltype(A::TypeSortedCollection) = Union{map(eltype, A.data)...}
