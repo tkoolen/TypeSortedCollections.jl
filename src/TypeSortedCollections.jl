@@ -30,7 +30,7 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
 
     function TypeSortedCollection{D, N}(indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
         lengths = map(length, indices)
-        data = ntuple(i -> D.parameters[i](uninitialized, lengths[i]), N)
+        data = ntuple(i -> D.parameters[i](undef, lengths[i]), N)
         TypeSortedCollection{D, N}(data, indices)
     end
 
