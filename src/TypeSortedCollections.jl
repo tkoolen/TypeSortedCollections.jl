@@ -164,7 +164,7 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f, dest::TSCOrAbstractVector{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractVector{N}...) where {N}
+@generated function Base.map!(f::Tf, dest::TSCOrAbstractVector{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractVector{N}...) where {Tf, N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(dest, src1, srcs...)))
@@ -187,7 +187,7 @@ end
     end
 end
 
-@generated function Base.foreach(f, A1::TypeSortedCollection{<:Any, N}, As::TSCOrAbstractVector{N}...) where {N}
+@generated function Base.foreach(f::Tf, A1::TypeSortedCollection{<:Any, N}, As::TSCOrAbstractVector{N}...) where {Tf, N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(leading_tsc = first_tsc(A1, As...)))
@@ -210,7 +210,7 @@ end
     end
 end
 
-@generated function Base.mapreduce(f, op, v0, tsc::TypeSortedCollection{<:Any, N}) where {N}
+@generated function Base.mapreduce(f::Tf, op, v0, tsc::TypeSortedCollection{<:Any, N}) where {Tf, N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(ret = v0))
@@ -228,7 +228,7 @@ end
 end
 
 ## broadcast!
-@generated function _broadcast!(f, dest, A, Bs...)
+@generated function _broadcast!(f::Tf, dest, A, Bs...) where Tf
     T = first_tsc_type(A, Bs...)
     N = num_types(T)
     expr = Expr(:block)
@@ -258,13 +258,14 @@ end
     struct TypeSortedStyle <: Broadcast.BroadcastStyle end
     Base.BroadcastStyle(::Type{<:TypeSortedCollection}) = TypeSortedStyle()
     Base.BroadcastStyle(::Broadcast.AbstractArrayStyle{1}, ::TypeSortedStyle) = TypeSortedStyle()
-    Base.BroadcastStyle(::Broadcast.Scalar, ::TypeSortedStyle) = TypeSortedStyle()
+    Base.BroadcastStyle(::Broadcast.AbstractArrayStyle{0}, ::TypeSortedStyle) = TypeSortedStyle()
+    Base.broadcastable(x::TypeSortedCollection) = x
 
-    @inline function Base.broadcast!(f, dest, ::TypeSortedStyle, A, Bs...)
-        _broadcast!(f, dest, A, Bs...)
+    @inline function Base.broadcast!(f::Tf, dest, ::TypeSortedStyle, arghead, argtail...) where Tf
+        _broadcast!(f, dest, arghead, argtail...)
     end
 
-    @inline Base.broadcast!(f, A::TypeSortedCollection, ::Nothing, Bs...) = _broadcast!(f, A, Bs...)
+    @inline Base.broadcast!(f::Tf, dest::TypeSortedCollection, ::Nothing, args...) where {Tf} = _broadcast!(f, dest, args...)
 else
     Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
     Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, _) = TypeSortedCollection
@@ -273,12 +274,12 @@ else
     Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, ::Type{Array}) = TypeSortedCollection # handle ambiguities with `Array`
     Base.Broadcast.promote_containertype(::Type{Array}, ::Type{TypeSortedCollection}) = TypeSortedCollection # handle ambiguities with `Array`
 
-    @inline function Base.Broadcast.broadcast_c!(f, ::Type, ::Type{TypeSortedCollection}, dest::AbstractVector, A, Bs...)
-        _broadcast!(f, dest, A, Bs...)
+    @inline function Base.Broadcast.broadcast_c!(f::Tf, ::Type, ::Type{TypeSortedCollection}, dest::AbstractVector, arghead, argtail::Vararg{Any, N}) where {Tf, N}
+        _broadcast!(f, dest, arghead, argtail...)
+        return dest
     end
 
-    @inline Base.broadcast!(f, A::TypeSortedCollection, Bs...) = _broadcast!(f, A, Bs...)
+    @inline Base.broadcast!(f::Tf, dest::TypeSortedCollection, args::Vararg{Any, N}) where {Tf, N} = _broadcast!(f, dest, args...)
 end
-
 
 end # module
