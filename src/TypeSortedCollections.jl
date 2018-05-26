@@ -174,7 +174,7 @@ end
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
                 @boundscheck indices_match($vali, inds, dest, src1, srcs...) || indices_match_fail()
-                @inbounds for j in linearindices(inds)
+                @inbounds for j in LinearIndices(inds)
                     vecindex = inds[j]
                     _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, src1, srcs...)...))
                 end
@@ -197,7 +197,7 @@ end
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
                 @boundscheck indices_match($vali, inds, A1, As...) || indices_match_fail()
-                @inbounds for j in linearindices(inds)
+                @inbounds for j in LinearIndices(inds)
                     vecindex = inds[j]
                     f(_getindex_all($vali, j, vecindex, A1, As...)...)
                 end
@@ -240,7 +240,7 @@ end
         push!(expr.args, quote
             let inds = leading_tsc.indices[$i]
                 @boundscheck indices_match($vali, inds, A, Bs...) || indices_match_fail()
-                @inbounds for j in linearindices(inds)
+                @inbounds for j in LinearIndices(inds)
                     vecindex = inds[j]
                     _setindex!($vali, j, vecindex, dest, f(_getindex_all($vali, j, vecindex, A, Bs...)...))
                 end
@@ -254,18 +254,24 @@ end
     end
 end
 
-@static if VERSION >= v"0.7.0-DEV.3181"
+@static if VERSION >= v"0.7.0-DEV.5096"
+    import Base.Broadcast: Broadcasted, BroadcastStyle, broadcastable, axes, instantiate
+
     struct TypeSortedStyle <: Broadcast.BroadcastStyle end
-    Base.BroadcastStyle(::Type{<:TypeSortedCollection}) = TypeSortedStyle()
-    Base.BroadcastStyle(::Broadcast.AbstractArrayStyle{1}, ::TypeSortedStyle) = TypeSortedStyle()
-    Base.BroadcastStyle(::Broadcast.AbstractArrayStyle{0}, ::TypeSortedStyle) = TypeSortedStyle()
-    Base.broadcastable(x::TypeSortedCollection) = x
+    BroadcastStyle(::Type{<:TypeSortedCollection}) = TypeSortedStyle()
+    BroadcastStyle(::TypeSortedStyle, ::Broadcast.DefaultArrayStyle{1}) = TypeSortedStyle()
+    BroadcastStyle(::TypeSortedStyle, ::Broadcast.DefaultArrayStyle{0}) = TypeSortedStyle()
+    broadcastable(x::TypeSortedCollection) = x
+    axes(tsc::TypeSortedCollection) = nothing
+    instantiate(bc::Broadcasted{TypeSortedStyle}) = bc
 
-    @inline function Base.broadcast!(f::Tf, dest, ::TypeSortedStyle, arghead, argtail...) where Tf
-        _broadcast!(f, dest, arghead, argtail...)
+    @inline Base.copyto!(dest::AbstractArray, bc::Broadcasted{TypeSortedStyle}) = _copy!(dest, bc)
+    @inline Base.copyto!(dest::TypeSortedCollection, bc::Broadcasted) = _copy!(dest, bc)
+
+    @inline function _copy!(dest, bc::Broadcasted)
+        flat = Broadcast.flatten(bc)
+        _broadcast!(flat.f, dest, flat.args...)
     end
-
-    @inline Base.broadcast!(f::Tf, dest::TypeSortedCollection, ::Nothing, args...) where {Tf} = _broadcast!(f, dest, args...)
 else
     Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
     Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, _) = TypeSortedCollection
