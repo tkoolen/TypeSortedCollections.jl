@@ -193,7 +193,8 @@ end
     results = similar(y, Float64)
     results .= M.g.(x, sortedy, z)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, sortedy, z)) == 0
+    broadcast!(M.g, results, x, sortedy, z)
+    @test (@allocated broadcast!(M.g, results, x, sortedy, z)) == 0
 end
 
 @testset "broadcast! consecutive scalars" begin
@@ -204,7 +205,8 @@ end
     results = similar(z, Float64)
     results .= M.g.(x, y, sortedz)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, y, sortedz)) == 0
+    broadcast!(M.g, results, x, y, sortedz)
+    @test (@allocated broadcast!(M.g, results, x, y, sortedz)) == 0
 end
 
 @testset "broadcast! Array first" begin
@@ -215,7 +217,8 @@ end
     results = similar(y, Float64)
     results .= M.g.(x, sortedy, z)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, sortedy, z)) == 0
+    broadcast!(M.g, results, x, y, z)
+    @test (@allocated broadcast!(M.g, results, x, y, z)) == 0
 end
 
 @testset "broadcast! indices mismatch" begin
