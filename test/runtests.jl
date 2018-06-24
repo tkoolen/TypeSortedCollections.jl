@@ -12,6 +12,14 @@ g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 end
 
+macro test_noalloc(expr)
+    quote
+        $(esc(expr))
+        allocs = @allocated $(esc(expr))
+        @test allocs == 0
+    end
+end
+
 @testset "ambiguities" begin
     @test isempty(detect_ambiguities(Base, Core, TypeSortedCollections))
 end
@@ -57,8 +65,7 @@ end
     for (index, element) in enumerate(x)
         @test results[index] == M.g(element, y1[index], y2[index])
     end
-    allocations = @allocated map!(M.g, results, sortedx, y1, y2)
-    @test allocations == 0
+    @test_noalloc map!(M.g, results, sortedx, y1, y2)
 
     y2 = Number[7.; 8; 9]
     sortedy2 = TypeSortedCollection(y2)
@@ -66,8 +73,7 @@ end
     for (index, element) in enumerate(x)
         @test results[index] == M.g(element, y1[index], y2[index])
     end
-    allocations = @allocated map!(M.g, results, sortedx, y1, sortedy2)
-    @test allocations == 0
+    @test_noalloc map!(M.g, results, sortedx, y1, sortedy2)
 end
 
 @testset "map! indices mismatch" begin
@@ -105,8 +111,7 @@ end
     y2 = Number[7.; 8; 9.]
     sortedy2 = TypeSortedCollection(y2)
     foreach(M.g, sortedx, y1, sortedy2)
-    allocations = @allocated foreach(M.g, sortedx, y1, sortedy2)
-    @test allocations == 0
+    @test_noalloc foreach(M.g, sortedx, y1, sortedy2)
 end
 
 @testset "append!" begin
@@ -122,7 +127,7 @@ end
     let sortedx = TypeSortedCollection(x), v0 = 2. # required to achieve zero allocations.
         result = mapreduce(M.f, +, v0, sortedx)
         @test isapprox(result, mapreduce(M.f, +, v0, sortedx); atol = 1e-18)
-        @test (@allocated mapreduce(M.f, +, v0, sortedx)) == 0
+        @test_noalloc mapreduce(M.f, +, v0, sortedx)
     end
 end
 
@@ -166,7 +171,7 @@ end
     results = similar(y, Float64)
     broadcast!(M.g, results, sortedx, sortedy, z)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated broadcast!(M.g, results, sortedx, sortedy, z)) == 0
+    @test_noalloc broadcast!(M.g, results, sortedx, sortedy, z)
 end
 
 @testset "broadcast! TSC Vec Number" begin
@@ -181,8 +186,7 @@ end
     results = similar(x, Float64)
     results .= M.g.(sortedx, y1, y2)
     @test all(results .== M.g.(x, y1, y2))
-
-    @test (@allocated broadcast!(M.g, results, sortedx, y1, y2)) == 0
+    @test_noalloc broadcast!(M.g, results, sortedx, y1, y2)
 end
 
 @testset "broadcast! with scalars and TSC as second arg" begin
@@ -193,7 +197,7 @@ end
     results = similar(y, Float64)
     results .= M.g.(x, sortedy, z)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, sortedy, z)) == 0
+    @test_noalloc broadcast!(M.g, results, x, sortedy, z)
 end
 
 @testset "broadcast! consecutive scalars" begin
@@ -204,7 +208,7 @@ end
     results = similar(z, Float64)
     results .= M.g.(x, y, sortedz)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, y, sortedz)) == 0
+    @test_noalloc broadcast!(M.g, results, x, y, sortedz)
 end
 
 @testset "broadcast! Array first" begin
@@ -215,7 +219,7 @@ end
     results = similar(y, Float64)
     results .= M.g.(x, sortedy, z)
     @test all(results .== M.g.(x, y, z))
-    @test (@allocated results .= M.g.(x, sortedy, z)) == 0
+    @test_noalloc broadcast!(M.g, results, x, sortedy, z)
 end
 
 @testset "broadcast! indices mismatch" begin
@@ -255,7 +259,7 @@ end
     results = similar(x, Float64)
     broadcast!(M.g, results, sortedx, y1, sortedy2)
     @test all(results .== M.g.(x, y1, y2))
-    @test (@allocated broadcast!(M.g, results, sortedx, y1, sortedy2)) == 0
+    @test_noalloc broadcast!(M.g, results, sortedx, y1, sortedy2)
 end
 
 @testset "broadcast! TSC destination" begin
@@ -272,7 +276,7 @@ end
     x = [4.; 5; 3.; Int32(2); Int16(1); "foo"]
     let sortedx = TypeSortedCollection(x)
         @test eltype(sortedx) == Union{Float64, Int64, Int32, Int16, String}
-        @test(@allocated(eltype(sortedx)) == 0)
+        @test_noalloc eltype(sortedx)
     end
 end
 
