@@ -143,6 +143,7 @@ Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little diffe
 Base.@propagate_inbounds @inline _getindex_all(vali::Val{i}, j, vecindex, a1, as...) where {i} = (_getindex(vali, j, vecindex, a1), _getindex_all(vali, j, vecindex, as...)...)
 @inline _getindex(::Val, j, vecindex, a) = a # for anything that's not an AbstractVector or TypeSortedCollection, don't index (for use in broadcast!)
 @inline _getindex(::Val, j, vecindex, a::AbstractVector) = a[vecindex]
+@inline _getindex(::Val, j, vecindex, a::Ref) = a[]
 @inline _getindex(::Val{i}, j, vecindex, a::TypeSortedCollection) where {i} = a.data[i][j]
 @inline _setindex!(::Val, j, vecindex, a::AbstractVector, val) = a[vecindex] = val
 @inline _setindex!(::Val{i}, j, vecindex, a::TypeSortedCollection, val) where {i} = a.data[i][j] = val
@@ -229,11 +230,11 @@ end
 
 ## broadcast!
 @generated function _broadcast!(f::Tf, dest, A, Bs...) where Tf
-    T = first_tsc_type(A, Bs...)
+    T = first_tsc_type(dest, A, Bs...)
     N = num_types(T)
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta)) # TODO: good idea?
-    push!(expr.args, :(leading_tsc = first_tsc(A, Bs...)))
+    push!(expr.args, :(leading_tsc = first_tsc(dest, A, Bs...)))
     push!(expr.args, :(@boundscheck lengths_match(dest, A, Bs...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)

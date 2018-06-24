@@ -10,6 +10,8 @@ g(x::Float64, y1::Float64, y2::Int64) = x + y1 + y2
 g(x::Int64, y1::Float64, y2::Float64) = x * y1 - y2
 g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
+
+struct Foo end
 end
 
 macro test_noalloc(expr)
@@ -303,4 +305,10 @@ end
         @test @inferred vectortypes(elt) == Tuple{Vector{Float64}, Vector{Int}}
         @test typeof(sortedx.data) == vectortypes(elt)
     end
+end
+
+@testset "broadcast with user types" begin
+    x = fill(M.Foo(), 3)
+    sortedx = TypeSortedCollection(x)
+    sortedx .= M.Foo()
 end
