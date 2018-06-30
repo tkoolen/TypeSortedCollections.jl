@@ -255,38 +255,19 @@ end
     end
 end
 
-@static if VERSION >= v"0.7.0-DEV.5096"
-    import Base.Broadcast: Broadcasted, BroadcastStyle, broadcastable, axes, instantiate
-
-    struct TypeSortedStyle <: Broadcast.BroadcastStyle end
-    BroadcastStyle(::Type{<:TypeSortedCollection}) = TypeSortedStyle()
-    BroadcastStyle(::TypeSortedStyle, ::Broadcast.DefaultArrayStyle{1}) = TypeSortedStyle()
-    BroadcastStyle(::TypeSortedStyle, ::Broadcast.DefaultArrayStyle{0}) = TypeSortedStyle()
-    broadcastable(x::TypeSortedCollection) = x
-    axes(tsc::TypeSortedCollection) = nothing
-    instantiate(bc::Broadcasted{TypeSortedStyle}) = bc
-
-    @inline Base.copyto!(dest::AbstractArray, bc::Broadcasted{TypeSortedStyle}) = _copy!(dest, bc)
-    @inline Base.copyto!(dest::TypeSortedCollection, bc::Broadcasted) = _copy!(dest, bc)
-
-    @inline function _copy!(dest, bc::Broadcasted)
-        flat = Broadcast.flatten(bc)
-        _broadcast!(flat.f, dest, flat.args...)
-    end
-else
-    Base.Broadcast._containertype(::Type{<:TypeSortedCollection}) = TypeSortedCollection
-    Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, _) = TypeSortedCollection
-    Base.Broadcast.promote_containertype(_, ::Type{TypeSortedCollection}) = TypeSortedCollection
-    Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, ::Type{TypeSortedCollection}) = TypeSortedCollection
-    Base.Broadcast.promote_containertype(::Type{TypeSortedCollection}, ::Type{Array}) = TypeSortedCollection # handle ambiguities with `Array`
-    Base.Broadcast.promote_containertype(::Type{Array}, ::Type{TypeSortedCollection}) = TypeSortedCollection # handle ambiguities with `Array`
-
-    @inline function Base.Broadcast.broadcast_c!(f::Tf, ::Type, ::Type{TypeSortedCollection}, dest::AbstractVector, arghead, argtail::Vararg{Any, N}) where {Tf, N}
-        _broadcast!(f, dest, arghead, argtail...)
-        return dest
-    end
-
-    @inline Base.broadcast!(f::Tf, dest::TypeSortedCollection, args::Vararg{Any, N}) where {Tf, N} = _broadcast!(f, dest, args...)
+import Base.Broadcast: Broadcasted, BroadcastStyle, broadcastable, axes, instantiate
+struct TypeSortedStyle <: Broadcast.BroadcastStyle end
+BroadcastStyle(::Type{<:TypeSortedCollection}) = TypeSortedStyle()
+BroadcastStyle(::TypeSortedStyle, ::Broadcast.DefaultArrayStyle{1}) = TypeSortedStyle()
+BroadcastStyle(::TypeSortedStyle, ::Broadcast.DefaultArrayStyle{0}) = TypeSortedStyle()
+broadcastable(x::TypeSortedCollection) = x
+axes(tsc::TypeSortedCollection) = nothing
+instantiate(bc::Broadcasted{TypeSortedStyle}) = bc
+@inline Base.copyto!(dest::AbstractArray, bc::Broadcasted{TypeSortedStyle}) = _copy!(dest, bc)
+@inline Base.copyto!(dest::TypeSortedCollection, bc::Broadcasted) = _copy!(dest, bc)
+@inline function _copy!(dest, bc::Broadcasted)
+    flat = Broadcast.flatten(bc)
+    _broadcast!(flat.f, dest, flat.args...)
 end
 
 end # module
