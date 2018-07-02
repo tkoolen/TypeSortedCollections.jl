@@ -18,8 +18,8 @@ struct TypeSortedCollection{D<:TupleOfVectors, N}
 
     function TypeSortedCollection{D, N}(data::D, indices::NTuple{N, Vector{Int}}) where {D<:TupleOfVectors, N}
         fieldcount(D) == N || error()
-        l = mapreduce(length, +, 0, data)
-        l == mapreduce(length, +, 0, indices) || error()
+        l = mapreduce(length, +, data, init=0)
+        l == mapreduce(length, +, indices, init=0) || error()
         if N > 0
             allindices = Base.Iterators.flatten(indices)
             allunique(allindices) || error()
@@ -70,7 +70,7 @@ function TypeSortedCollection(A, preserve_order::Bool = false)
 end
 
 function TypeSortedCollection(A, indices::NTuple{N, Vector{Int}} where {N})
-    @assert length(A) == mapreduce(length, +, 0, indices)
+    @assert length(A) == mapreduce(length, +, indices, init=0)
     data = []
     for indicesvec in indices
         T = length(indicesvec) > 0 ? typeof(A[indicesvec[1]]) : Nothing
@@ -128,7 +128,7 @@ const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractV
 
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
-@inline Base.length(x::TypeSortedCollection) = mapreduce(length, +, 0, x.data)
+@inline Base.length(x::TypeSortedCollection) = mapreduce(length, +, x.data, init=0)
 Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
 
 # Trick from StaticArrays:
@@ -211,14 +211,14 @@ end
     end
 end
 
-@generated function Base.mapreduce(f::Tf, op, v0, tsc::TypeSortedCollection{<:Any, N}) where {Tf, N}
+@generated function Base.mapreduce(f::Tf, op, tsc::TypeSortedCollection{<:Any, N}; init) where {Tf, N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(ret = v0))
+    push!(expr.args, :(ret = init))
     for i = 1 : N
         push!(expr.args, quote
             let vec = tsc.data[$i]
-                ret = mapreduce(f, op, ret, vec)
+                ret = mapreduce(f, op, vec, init=ret)
             end
         end)
     end

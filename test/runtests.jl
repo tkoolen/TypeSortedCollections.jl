@@ -127,9 +127,9 @@ end
 @testset "mapreduce" begin
     x = Number[4.; 5; 3.]
     let sortedx = TypeSortedCollection(x), v0 = 2. # required to achieve zero allocations.
-        result = mapreduce(M.f, +, v0, sortedx)
-        @test isapprox(result, mapreduce(M.f, +, v0, sortedx); atol = 1e-18)
-        @test_noalloc mapreduce(M.f, +, v0, sortedx)
+        result = mapreduce(M.f, +, sortedx, init=v0)
+        @test isapprox(result, mapreduce(M.f, +, sortedx, init=v0); atol = 1e-18)
+        @test_noalloc mapreduce(M.f, +, sortedx, init=v0)
     end
 end
 
@@ -289,7 +289,7 @@ end
     @test_throws ArgumentError push!(sortedx, "foo")
     push!(sortedx, 8)
     @test length(sortedx) == 4
-    @test mapreduce(x -> x == 8, (a, b) -> a || b, false, sortedx)
+    @test mapreduce(x -> x == 8, (a, b) -> a || b, sortedx, init=false)
     results = similar(x, length(sortedx))
     map!(identity, results, sortedx)
     @test last(results) == 8
@@ -310,5 +310,5 @@ end
 @testset "broadcast with user types" begin
     x = fill(M.Foo(), 3)
     sortedx = TypeSortedCollection(x)
-    sortedx .= M.Foo()
+    sortedx .= Ref(M.Foo())
 end
