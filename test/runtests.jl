@@ -16,10 +16,10 @@ end
 
 macro test_noalloc(expr)
     quote
-        $(esc(expr))
-        allocs = @allocated $(esc(expr))
+        $expr
+        allocs = @allocated $expr
         @test allocs == 0
-    end
+    end |> esc
 end
 
 @testset "ambiguities" begin
@@ -188,7 +188,9 @@ end
     results = similar(x, Float64)
     results .= M.g.(sortedx, y1, y2)
     @test all(results .== M.g.(x, y1, y2))
-    @test_noalloc broadcast!(M.g, results, sortedx, y1, y2)
+    let results = results # needed on 0.7 for some reason; TODO: investigate more
+        @test_noalloc broadcast!(M.g, results, sortedx, y1, y2)
+    end
 end
 
 @testset "broadcast! with scalars and TSC as second arg" begin
