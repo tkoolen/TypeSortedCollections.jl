@@ -211,7 +211,7 @@ end
     end
 end
 
-@generated function Base.mapreduce(f::Tf, op, tsc::TypeSortedCollection{<:Any, N}; init) where {Tf, N}
+@generated function Base.mapreduce(f::Tf, op::O, tsc::TypeSortedCollection{<:Any, N}; init) where {Tf, O, N}
     expr = Expr(:block)
     push!(expr.args, :(Base.@_inline_meta))
     push!(expr.args, :(ret = init))
