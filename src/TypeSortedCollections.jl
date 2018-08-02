@@ -1,4 +1,4 @@
-__precompile__()
+VERSION < v"0.7.0-beta2.199" && __precompile__()
 
 module TypeSortedCollections
 
@@ -165,11 +165,8 @@ end
 @inline indices_match(vali::Val, indices::Vector{Int}, a1, as...) = indices_match(vali, indices, a1) && indices_match(vali, indices, as...)
 @noinline indices_match_fail() = throw(ArgumentError("Indices of TypeSortedCollections do not match."))
 
-@generated function Base.map!(f::Tf, dest::TSCOrAbstractVector{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractVector{N}...) where {Tf, N}
+@generated function Base.map!(f::F, dest::TSCOrAbstractVector{N}, src1::TypeSortedCollection{<:Any, N}, srcs::TSCOrAbstractVector{N}...) where {F, N}
     expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(leading_tsc = first_tsc(dest, src1, srcs...)))
-    push!(expr.args, :(@boundscheck lengths_match(dest, src1, srcs...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
@@ -183,16 +180,16 @@ end
         end)
     end
     quote
+        Base.@_inline_meta
+        leading_tsc = first_tsc(dest, src1, srcs...)
+        @boundscheck lengths_match(dest, src1, srcs...) || lengths_match_fail()
         $expr
         dest
     end
 end
 
-@generated function Base.foreach(f::Tf, A1::TypeSortedCollection{<:Any, N}, As::TSCOrAbstractVector{N}...) where {Tf, N}
+@generated function Base.foreach(f::F, A1::TypeSortedCollection{<:Any, N}, As::TSCOrAbstractVector{N}...) where {F, N}
     expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(leading_tsc = first_tsc(A1, As...)))
-    push!(expr.args, :(@boundscheck lengths_match(A1, As...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
@@ -206,36 +203,28 @@ end
         end)
     end
     quote
+        Base.@_inline_meta
+        leading_tsc = first_tsc(A1, As...)
+        @boundscheck lengths_match(A1, As...) || lengths_match_fail()
         $expr
         nothing
     end
 end
 
-@generated function Base.mapreduce(f::Tf, op, tsc::TypeSortedCollection{<:Any, N}; init) where {Tf, N}
-    expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta))
-    push!(expr.args, :(ret = init))
-    for i = 1 : N
-        push!(expr.args, quote
-            let vec = tsc.data[$i]
-                ret = mapreduce(f, op, vec, init=ret)
-            end
-        end)
-    end
+@generated function Base.mapreduce(f::F, op::O, tsc::TypeSortedCollection{<:Any, N}; init) where {F, O, N}
     quote
-        $expr
+        Base.@_inline_meta
+        ret = init
+        $([:(ret = mapreduce(f, op, tsc.data[$i], init=ret)) for i = 1 : N]...)
         return ret
     end
 end
 
 ## broadcast!
-@generated function _broadcast!(f::Tf, dest, A, Bs...) where Tf
+@generated function _broadcast!(f::F, dest::D, A, Bs...) where {F, D}
     T = first_tsc_type(dest, A, Bs...)
     N = num_types(T)
     expr = Expr(:block)
-    push!(expr.args, :(Base.@_inline_meta)) # TODO: good idea?
-    push!(expr.args, :(leading_tsc = first_tsc(dest, A, Bs...)))
-    push!(expr.args, :(@boundscheck lengths_match(dest, A, Bs...) || lengths_match_fail()))
     for i = 1 : N
         vali = Val(i)
         push!(expr.args, quote
@@ -250,6 +239,8 @@ end
     end
     quote
         Base.@_inline_meta
+        leading_tsc = first_tsc(dest, A, Bs...)
+        @boundscheck lengths_match(dest, A, Bs...) || lengths_match_fail()
         $expr
         dest
     end
