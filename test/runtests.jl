@@ -1,6 +1,8 @@
 using Test
 using TypeSortedCollections
 
+using TypeSortedCollections: indices
+
 module M
 f(x::Int64) = 3 * x
 f(x::Float64) = round(Int64, x / 2)
