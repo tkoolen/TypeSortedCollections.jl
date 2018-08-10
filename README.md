@@ -96,7 +96,7 @@ julia> map!(*, results, sortedxs, sortedys) # Error!
 ```
 The error happens because `xs` and `ys` don't have the same number of different element types. This problem can be solved by aligning the indices of `sortedys` with those of `sortedxs`:
 ```julia
-julia> sortedys = TypeSortedCollection(ys, indices(sortedxs));
+julia> sortedys = TypeSortedCollection(ys, TypeSortedCollections.indices(sortedxs));
 
 julia> map!(*, results, sortedxs, sortedys)
 4-element Array{Float64,1}:

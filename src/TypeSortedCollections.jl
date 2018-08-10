@@ -129,7 +129,7 @@ const TSCOrAbstractVector{N} = Union{<:TypeSortedCollection{<:Any, N}, AbstractV
 Base.isempty(x::TypeSortedCollection) = all(isempty, x.data)
 Base.empty!(x::TypeSortedCollection) = foreach(empty!, x.data)
 @inline Base.length(x::TypeSortedCollection) = mapreduce(length, +, x.data, init=0)
-Base.indices(x::TypeSortedCollection) = x.indices # semantics are a little different from Array, but OK
+indices(x::TypeSortedCollection) = x.indices
 
 # Trick from StaticArrays:
 @inline first_tsc(a1::TypeSortedCollection, as...) = a1
