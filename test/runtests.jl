@@ -13,6 +13,9 @@ g(x::Int64, y1::Float64, y2::Float64) = x * y1 - y2
 g(x::Float64, y1::Float64, y2::Float64) = x + y1 - y2
 g(x::Int64, y1::Int64, y2::Float64) = x - y1 * y2
 
+h(x::Int64) = x > 4
+h(x::Float64) = x <= 4
+
 struct Foo end
 end
 
@@ -129,9 +132,26 @@ end
 @testset "mapreduce" begin
     x = Number[4.; 5; 3.]
     let sortedx = TypeSortedCollection(x), v0 = 2. # required to achieve zero allocations.
-        result = mapreduce(M.f, +, sortedx, init=v0)
+        result = mapreduce(M.f, +, x, init=v0)
         @test isapprox(result, mapreduce(M.f, +, sortedx, init=v0); atol = 1e-18)
         @test_noalloc mapreduce(M.f, +, sortedx, init=v0)
+    end
+end
+
+@testset "any/all" begin
+    x = Number[4.; 5; 3.]
+    y = [missing, true, false]
+    z = []
+    let sortedx = TypeSortedCollection(x), sortedy = TypeSortedCollection(y), sortedz = TypeSortedCollection(z)
+        @test any(M.h, x) == any(M.h, sortedx) && all(M.h, x) == all(M.h, sortedx)
+        @test any(y) == any(sortedy) && all(y) == all(sortedy)
+        @test any(z) == any(sortedz) && all(z) == all(sortedz)
+        @test_noalloc any(M.h, sortedx)
+        @test_noalloc all(M.h, sortedx)
+        @test_noalloc any(sortedy)
+        @test_noalloc all(sortedy)
+        @test_noalloc any(sortedz)
+        @test_noalloc all(sortedz)
     end
 end
 

@@ -220,6 +220,46 @@ end
     end
 end
 
+@generated function Base.any(f::F, tsc::TypeSortedCollection{<:Any, N}) where {F, N}
+    expr = Expr(:block)
+    for i = 1 : N
+        push!(expr.args, quote
+            v = any(f, tsc.data[$i])
+            if ismissing(v)
+                anymissing = true
+            elseif v
+                return true
+            end
+        end)
+    end
+    quote
+        Base.@_inline_meta
+        anymissing = false
+        $expr
+        anymissing ? missing : false
+    end
+end
+
+@generated function Base.all(f::F, tsc::TypeSortedCollection{<:Any, N}) where {F, N}
+    expr = Expr(:block)
+    for i = 1 : N
+        push!(expr.args, quote
+            v = all(f, tsc.data[$i])
+            if ismissing(v)
+                anymissing = true
+            elseif !v
+                return false
+            end
+        end)
+    end
+    quote
+        Base.@_inline_meta
+        anymissing = false
+        $expr
+        anymissing ? missing : true
+    end
+end
+
 ## broadcast!
 @generated function _broadcast!(f::F, dest::D, A, Bs...) where {F, D}
     T = first_tsc_type(dest, A, Bs...)
