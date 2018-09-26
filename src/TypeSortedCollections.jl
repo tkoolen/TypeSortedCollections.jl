@@ -1,5 +1,3 @@
-VERSION < v"0.7.0-beta2.199" && __precompile__()
-
 module TypeSortedCollections
 
 export
@@ -7,8 +5,6 @@ export
     num_types,
     eltypes,
     vectortypes
-
-using Compat
 
 const TupleOfVectors = Tuple{Vararg{Vector{T} where T}}
 
